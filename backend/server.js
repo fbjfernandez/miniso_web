@@ -12,8 +12,20 @@ const app  = express();
 const PORT = process.env.PORT || 3000;
 
 // ── Middleware ──
-app.use(cors());                    // Permite peticiones desde el frontend (otro puerto)
-app.use(express.json());            // Parsea body en JSON
+app.use(cors({
+  origin: [
+    'http://localhost:5500',
+    'http://127.0.0.1:5500',
+    'https://miniso-web-omega.vercel.app',  
+  ],
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization'],
+  credentials: true,
+}));
+
+// Responder explícitamente a las peticiones preflight
+app.options('*', cors());                   
+app.use(express.json());            
 
 // ── Rutas ──
 app.use('/api', apiRoutes);
