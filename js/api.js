@@ -2,7 +2,7 @@
 // Capa de comunicación entre el frontend y el backend Express
 // Equivalente al flujo: FrmXxx → Servlet → Service → DAO
 
-const API_URL = 'https://miniso-web.onrender.com';
+const API_URL = 'https://miniso-web.onrender.com/api';
 
 // Helper base para todas las llamadas
 async function request(method, endpoint, body = null) {
