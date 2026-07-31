@@ -16,6 +16,7 @@ Productos Admin:
 <img width="1875" height="897" alt="image" src="https://github.com/user-attachments/assets/a8c7f462-b1d5-45bb-ba55-59e584df4f31" />
 
 Agregar Cliente:
+
 https://github.com/user-attachments/assets/197fab9b-7007-49b5-a794-87486a5756bc
 
 ## 📋 Resumen
