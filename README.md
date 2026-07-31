@@ -15,6 +15,9 @@ https://github.com/user-attachments/assets/909aa543-097b-4e13-a8dd-8dc2617c9881
 Productos Admin:
 <img width="1875" height="897" alt="image" src="https://github.com/user-attachments/assets/a8c7f462-b1d5-45bb-ba55-59e584df4f31" />
 
+Agregar Cliente:
+https://github.com/user-attachments/assets/197fab9b-7007-49b5-a794-87486a5756bc
+
 ## 📋 Resumen
 
 Sistema web integral de punto de venta (POS) y gestión de inventarios desarrollado para una tienda minorista multiproducto. Automatiza los procesos críticos de facturación, devoluciones, abastecimiento y control de existencias, eliminando el uso de registros manuales y hojas de cálculo.
