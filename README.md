@@ -9,8 +9,10 @@
 ## 🎥 Demo
 
 Login Admin:
-https://github.com/user-attachments/assets/97c5ef46-e0ef-4adb-8b36-fa6a2d0c9e2b
 
+https://github.com/user-attachments/assets/909aa543-097b-4e13-a8dd-8dc2617c9881
+
+Productos Admin:
 <img width="1875" height="897" alt="image" src="https://github.com/user-attachments/assets/a8c7f462-b1d5-45bb-ba55-59e584df4f31" />
 
 ## 📋 Resumen
