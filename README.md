@@ -6,6 +6,12 @@
 🌐 **Demo en vivo:** [miniso-web-omega.vercel.app](https://miniso-web-omega.vercel.app)
 
 ---
+## 🎥 Demo
+
+Login Admin:
+https://github.com/user-attachments/assets/5e2faca9-d127-49ff-9b32-f3a6892039bb
+
+<img width="1875" height="897" alt="image" src="https://github.com/user-attachments/assets/a8c7f462-b1d5-45bb-ba55-59e584df4f31" />
 
 ## 📋 Resumen
 
@@ -13,6 +19,10 @@ Sistema web integral de punto de venta (POS) y gestión de inventarios desarroll
 
 
 ## 🛠️ Stack Tecnológico
+
+https://github.com/user-attachments/assets/97c5ef46-e0ef-4adb-8b36-fa6a2d0c9e2b
+
+
 
 | Capa | Tecnología |
 |------|-----------|
