@@ -9,7 +9,7 @@
 ## 🎥 Demo
 
 Login Admin:
-https://github.com/user-attachments/assets/5e2faca9-d127-49ff-9b32-f3a6892039bb
+https://github.com/user-attachments/assets/909aa543-097b-4e13-a8dd-8dc2617c9881
 
 <img width="1875" height="897" alt="image" src="https://github.com/user-attachments/assets/a8c7f462-b1d5-45bb-ba55-59e584df4f31" />
 
