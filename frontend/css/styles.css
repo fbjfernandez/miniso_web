@@ -157,7 +157,10 @@ body {
 .user-role { font-size: 11px; color: var(--gray-400); }
 
 .btn-logout {
-    display: inline-block;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
     background-color: transparent;
     color: #ef4444;
     border: 1px solid #ef4444;
@@ -165,7 +168,6 @@ body {
     border-radius: 6px;
     font-weight: 600;
     cursor: pointer;
-    text-align: center;
     transition: all 0.2s ease-in-out;
 }
 
