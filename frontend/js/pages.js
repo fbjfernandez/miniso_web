@@ -361,7 +361,8 @@ function renderRegistrarVenta() {
           <button class="btn btn-primary btn-lg" onclick="confirmarVenta()">${ICONS.check} Confirmar Venta</button>
         </div>
       </div>
-    </div>`;
+    </div>
+    <div id="cliente-modal-root"></div>`;
 
   renderLayout('Registrar Venta', content, 'registrar-venta');
 }
@@ -433,9 +434,6 @@ function quitarClienteVenta() {
 
 function openClienteModalVenta() {
   openClienteModal();
-  // Tras registrar, el modal estándar refresca la tabla de clientes;
-  // aquí solo habilitamos que el cajero pueda buscarlo de inmediato.
-  const original = submitCliente;
   showToast('Registra al cliente y luego búscalo arriba', 'info');
 }
 
@@ -508,7 +506,11 @@ async function confirmarVenta() {
     return;
   }
 
-  // Paso 10: Verificar existencia de stock contra BD antes de grabar
+  if (!ventaClienteSeleccionado) {
+    showToast('Error: Debe seleccionar o registrar un cliente antes de procesar la venta', 'error');
+    return;
+  }
+
   for (const item of ventaCart) {
     const productoActual = DB.productos.find(p => p.id === item.id);
     if (!productoActual || productoActual.stock < item.cantidad) {
@@ -518,18 +520,17 @@ async function confirmarVenta() {
   }
 
   try {
-    // Pasos 11-13: Generar nro, grabar venta y detalle (lo hace el Service en el backend)
     const venta = await API.createVenta({
-      id_cliente:      ventaClienteSeleccionado ? ventaClienteSeleccionado.id : null,
+      id_cliente: ventaClienteSeleccionado.id,
       username_cajero: APP.currentUser.username,
       items: ventaCart.map(i => ({
         id_producto: i.id,
-        cantidad:    i.cantidad,
+        cantidad: i.cantidad,
         precio_unit: i.precio,
       })),
     });
-    // Paso 14: Mostrar mensaje de éxito
-    showToast(`Venta ${venta.id} registrada correctamente`, 'success');
+    
+    showToast(`Comprobante ${venta.comprobante} emitido correctamente. Nota de salida generada.`, 'success');
     navigateTo('dashboard');
   } catch (err) {
     showToast(err.message, 'error');
