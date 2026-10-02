@@ -2,7 +2,12 @@
 // MINISO SYSTEM — Page Renderers
 // =============================================
 
-// ── LOGIN ──
+function formatearFecha(fechaISO) {
+  if (!fechaISO) return '—';
+  const soloFecha = fechaISO.split('T')[0];
+  const [year, month, day] = soloFecha.split('-');
+  return `${day}/${month}/${year}`; 
+}
 function renderLogin() {
   document.getElementById('app').innerHTML = `
     <div class="login-page">
@@ -541,7 +546,17 @@ async function confirmarVenta() {
 // CAJERO — DEVOLUCIONES
 // =============================================
 async function renderDevoluciones() {
-  try { DB.ventas = await API.getVentas(); } catch(e) {}
+  try { 
+    // Garantizamos la carga en paralelo de ventas y clientes desde Supabase
+    const [ventasData, clientesData] = await Promise.all([
+      API.getVentas(),
+      API.getClientes()
+    ]);
+    DB.ventas = ventasData;
+    DB.clientes = clientesData;
+  } catch(e) {
+    showToast('Error al sincronizar datos: ' + e.message, 'error');
+  }
 
   const content = `
     <div class="page-header">
@@ -569,12 +584,19 @@ async function renderDevoluciones() {
 function devolucionRows(list) {
   if (!list.length) return `<tr><td colspan="6" style="text-align:center;color:var(--gray-400);">Sin resultados</td></tr>`;
   return list.map(v => {
-    const cliente = DB.clientes.find(c => c.id === (v.cliente || v.id_cliente));
+    // 1. Resolver el objeto cliente buscando por id_cliente o cliente
+    const idCliente = v.id_cliente || v.cliente;
+    const clienteObj = DB.clientes.find(c => String(c.id).trim() === String(idCliente).trim());
+    const nombreCliente = clienteObj ? clienteObj.nombre : (v.nombre_cliente || 'Cliente General');
+
+    // 2. Formatear la fecha
+    const fechaLimpia = formatearFecha(v.fecha);
+
     return `
       <tr>
         <td><strong>${v.id}</strong></td>
-        <td>${v.fecha}</td>
-        <td>${cliente ? cliente.nombre : '—'}</td>
+        <td>${fechaLimpia}</td>
+        <td>${nombreCliente}</td>
         <td>S/ ${parseFloat(v.total || 0).toFixed(2)}</td>
         <td>${estadoVentaBadge(v.estado)}</td>
         <td>
@@ -585,7 +607,6 @@ function devolucionRows(list) {
       </tr>`;
   }).join('');
 }
-
 function estadoVentaBadge(estado) {
   const map = { Completada: 'badge-success', Devuelta: 'badge-error', Pendiente: 'badge-warning' };
   return `<span class="badge ${map[estado] || 'badge-gray'}">${estado}</span>`;
@@ -1242,30 +1263,44 @@ function renderReporteResultados(ventas, fechaIni, fechaFin) {
     return '<div class="alert alert-error">' + ICONS.alert + ' La fecha de inicio no puede ser mayor a la fecha fin.</div>';
   }
 
-  const filtradas   = ventas.filter(v => v.fecha >= fechaIni && v.fecha <= fechaFin);
+  // 1. Normalizar la fecha a YYYY-MM-DD para filtrado preciso
+  const filtradas = ventas.filter(v => {
+    if (!v.fecha) return false;
+    const fechaSoloDia = v.fecha.split('T')[0];
+    return fechaSoloDia >= fechaIni && fechaSoloDia <= fechaFin;
+  });
+
   const completadas = filtradas.filter(v => v.estado === 'Completada');
   const totalVentas = completadas.reduce((s, v) => s + parseFloat(v.total || 0), 0);
   const totalDevueltas = filtradas.filter(v => v.estado === 'Devuelta').length;
 
-  // Agrupar ventas por fecha para el gráfico
+  // Agrupar ventas por fecha (YYYY-MM-DD) para el gráfico
   const ventasPorFecha = {};
   completadas.forEach(v => {
-    ventasPorFecha[v.fecha] = (ventasPorFecha[v.fecha] || 0) + parseFloat(v.total || 0);
+    const fechaDia = v.fecha.split('T')[0];
+    ventasPorFecha[fechaDia] = (ventasPorFecha[fechaDia] || 0) + parseFloat(v.total || 0);
   });
   const fechas  = Object.keys(ventasPorFecha).sort();
   const totales = fechas.map(f => ventasPorFecha[f]);
   const maxVal  = Math.max(...totales, 1);
   const barW    = fechas.length === 1 ? 80 : Math.max(20, Math.min(60, Math.floor(600 / fechas.length)));
 
-  // Filas de la tabla
+  // 2. Mapeo de filas con formato limpio (CAMBIO PRINCIPAL)
   const rows = filtradas.map(v => {
-    // Supabase devuelve id_cliente; mock usa cliente
+    // A) Obtención y formateo de la fecha (DD/MM/YYYY)
+    const fechaSoloDia = v.fecha ? v.fecha.split('T')[0] : '';
+    const [year, month, day] = fechaSoloDia ? fechaSoloDia.split('-') : ['--', '--', '----'];
+    const fechaFormateada = fechaSoloDia ? `${day}/${month}/${year}` : '—';
+
+    // B) Obtención robusta del nombre del cliente
     const idCliente = v.id_cliente || v.cliente;
-    const cliente = DB.clientes.find(c => c.id === idCliente);
+    const cliente = DB.clientes.find(c => String(c.id).trim() === String(idCliente).trim());
+    const nombreCliente = cliente ? cliente.nombre : (v.nombre_cliente || 'Cliente General');
+
     return '<tr>'
       + '<td><strong>' + v.id + '</strong></td>'
-      + '<td>' + v.fecha + '</td>'
-      + '<td>' + (cliente ? cliente.nombre : (v.cliente || '—')) + '</td>'
+      + '<td>' + fechaFormateada + '</td>'
+      + '<td>' + nombreCliente + '</td>'
       + '<td>' + (v.cajero || v.username_cajero || '—') + '</td>'
       + '<td>S/ ' + parseFloat(v.total || 0).toFixed(2) + '</td>'
       + '<td>' + estadoVentaBadge(v.estado) + '</td>'
@@ -1275,10 +1310,12 @@ function renderReporteResultados(ventas, fechaIni, fechaFin) {
   // Barras del gráfico
   const barras = fechas.map(function(f, i) {
     const altura = Math.max(4, Math.round((totales[i] / maxVal) * 140));
+    const [y, m, d] = f.split('-');
+    const fechaBarra = `${d}/${m}`;
     return '<div style="display:flex;flex-direction:column;align-items:center;gap:4px;width:' + barW + 'px;flex-shrink:0;">'
       + '<div style="font-size:10px;color:var(--gray-500);font-weight:500;">S/' + totales[i].toFixed(0) + '</div>'
       + '<div style="width:100%;background:var(--red);border-radius:4px 4px 0 0;height:' + altura + 'px;" title="S/ ' + totales[i].toFixed(2) + '"></div>'
-      + '<div style="font-size:9px;color:var(--gray-400);transform:rotate(-35deg);white-space:nowrap;">' + f.slice(5) + '</div>'
+      + '<div style="font-size:9px;color:var(--gray-400);transform:rotate(-35deg);white-space:nowrap;">' + fechaBarra + '</div>'
       + '</div>';
   }).join('');
 
