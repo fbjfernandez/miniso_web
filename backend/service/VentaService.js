@@ -1,4 +1,3 @@
-// backend/service/VentaService.js
 const supabase = require('../config/supabase');
 
 const VentaService = {
@@ -13,38 +12,16 @@ const VentaService = {
     if (!items || items.length === 0)
       throw new Error('La venta debe tener al menos un producto');
 
-    // Generar ID de venta
-    const { data: last } = await supabase
-      .from('venta').select('id').order('id', { ascending: false }).limit(1);
-    const nextNum = last && last.length > 0
-      ? parseInt(last[0].id.replace('V', ''), 10) + 1 : 1;
-    const id = 'V' + String(nextNum).padStart(3, '0');
-
     const total = items.reduce((s, i) => s + i.cantidad * i.precio_unit, 0);
 
-    // Grabar cabecera
-    const { error: e1 } = await supabase.from('venta').insert([{
-      id,
-      fecha: new Date().toISOString().slice(0, 10),
-      id_cliente: id_cliente || null,
-      username_cajero,
-      total: parseFloat(total.toFixed(2)),
-      estado: 'Completada',
-    }]);
-    if (e1) throw e1;
+    const { data: ventaGenerada, error: rpcError } = await supabase.rpc('registrar_venta', {
+      p_cliente_id: id_cliente || null,
+      p_cajero_username: username_cajero,
+      p_detalles: items
+    });
 
-    // Grabar detalle
-    const detalles = items.map(i => ({
-      id_venta: id,
-      id_producto: i.id_producto,
-      cantidad: i.cantidad,
-      precio_unit: i.precio_unit,
-      subtotal: parseFloat((i.cantidad * i.precio_unit).toFixed(2)),
-    }));
-    const { error: e2 } = await supabase.from('detalle_venta').insert(detalles);
-    if (e2) throw e2;
+    if (rpcError) throw new Error(`Error en el motor de BD: ${rpcError.message}`);
 
-    // Descontar stock de cada producto
     for (const item of items) {
       const { data: p } = await supabase
         .from('producto').select('stock').eq('id', item.id_producto).single();
@@ -55,7 +32,6 @@ const VentaService = {
       }
     }
 
-    // Sumar puntos al cliente (1 punto por cada S/10)
     if (id_cliente) {
       const { data: c } = await supabase
         .from('cliente').select('puntos').eq('id', id_cliente).single();
@@ -66,7 +42,13 @@ const VentaService = {
       }
     }
 
-    return { id, total, estado: 'Completada' };
+    return { 
+      id: ventaGenerada.id,
+      comprobante: ventaGenerada.comprobante,
+      estado_almacen: ventaGenerada.estado_almacen,
+      total: total, 
+      estado: 'Completada' 
+    };
   },
 
   async registrarDevolucion(id) {
