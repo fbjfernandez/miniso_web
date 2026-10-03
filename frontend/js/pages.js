@@ -1398,11 +1398,20 @@ async function buscarReporteVentas() {
 // =============================================
 // ADMINISTRADOR — USUARIOS (Mantener usuario)
 // =============================================
-function renderUsuarios() {
+async function renderUsuarios() {
+  renderLayout('Usuarios', `<div style="padding:48px;text-align:center;color:var(--gray-400);">Cargando usuarios...</div>`, 'usuarios');
+
+  try {
+    DB.users = await API.getUsuarios();
+  } catch (err) {
+    showToast('Error al cargar usuarios: ' + err.message, 'error');
+    DB.users = [];
+  }
+
   const rows = DB.users.map(u => `
     <tr>
       <td><strong>${u.username}</strong></td>
-      <td>${u.nombre}</td>
+      <td>${u.nombre} ${u.apellido_paterno || ''} ${u.apellido_materno || ''}</td>
       <td><span class="badge badge-info">${u.rol}</span></td>
       <td><button class="btn btn-sm btn-ghost" onclick="openUsuarioModal(${u.id})">${ICONS.edit}</button></td>
     </tr>`).join('');
@@ -1419,12 +1428,13 @@ function renderUsuarios() {
       </div>
       <div class="table-wrapper">
         <table>
-          <thead><tr><th>Usuario</th><th>Nombre</th><th>Rol</th><th></th></tr></thead>
-          <tbody>${rows}</tbody>
+          <thead><tr><th>Usuario</th><th>Nombre Completo</th><th>Rol</th><th></th></tr></thead>
+          <tbody>${rows || '<tr><td colspan="4" style="text-align:center;color:var(--gray-400);">No hay usuarios registrados</td></tr>'}</tbody>
         </table>
       </div>
     </div>
     <div id="usuario-modal-root"></div>`;
+
   renderLayout('Usuarios', content, 'usuarios');
 }
 
@@ -1441,16 +1451,24 @@ function openUsuarioModal(userId) {
           <div class="modal-body">
             <div class="form-grid">
               <div class="form-group span-2">
-                <label>Nombre completo</label>
+                <label>Nombre</label>
                 <input type="text" id="us-nombre" value="${editing ? editing.nombre : ''}" required>
+              </div>
+              <div class="form-group">
+                <label>Apellido Paterno</label>
+                <input type="text" id="us-apellido-paterno" value="${editing ? (editing.apellido_paterno || '') : ''}" required>
+              </div>
+              <div class="form-group">
+                <label>Apellido Materno</label>
+                <input type="text" id="us-apellido-materno" value="${editing ? (editing.apellido_materno || '') : ''}">
               </div>
               <div class="form-group">
                 <label>Usuario</label>
                 <input type="text" id="us-username" value="${editing ? editing.username : ''}" required>
               </div>
               <div class="form-group">
-                <label>Contraseña</label>
-                <input type="text" id="us-password" value="${editing ? editing.password : ''}" required>
+                <label>Contraseña ${editing ? '(dejar vacía para mantener)' : ''}</label>
+                <input type="password" id="us-password" ${editing ? '' : 'required'}>
               </div>
               <div class="form-group span-2">
                 <label>Rol</label>
@@ -1473,30 +1491,36 @@ function closeUsuarioModal() {
   document.getElementById('usuario-modal-root').innerHTML = '';
 }
 
-function submitUsuario(e, userId) {
+async function submitUsuario(e, userId) {
   e.preventDefault();
   const username = document.getElementById('us-username').value.trim();
-  const duplicado = DB.users.find(u => u.username === username && u.id !== userId);
-  if (duplicado) {
-    showToast(`El usuario "${username}" ya existe`, 'error');
-    return;
-  }
+  const password = document.getElementById('us-password').value;
+
   const data = {
     nombre: document.getElementById('us-nombre').value.trim(),
+    apellido_paterno: document.getElementById('us-apellido-paterno').value.trim(),
+    apellido_materno: document.getElementById('us-apellido-materno').value.trim(),
     username,
-    password: document.getElementById('us-password').value.trim(),
-    rol: document.getElementById('us-rol').value,
+    rol: document.getElementById('us-rol').value
   };
-  if (userId) {
-    Object.assign(DB.users.find(u => u.id === userId), data);
-    showToast('Usuario actualizado correctamente', 'success');
-  } else {
-    const nextId = Math.max(...DB.users.map(u => u.id)) + 1;
-    DB.users.push({ id: nextId, ...data });
-    showToast('Usuario creado correctamente', 'success');
+
+  if (password) {
+    data.password = password;
   }
-  closeUsuarioModal();
-  renderUsuarios();
+
+  try {
+    if (userId) {
+      await API.updateUsuario(userId, data);
+      showToast('Usuario actualizado correctamente', 'success');
+    } else {
+      await API.createUsuario(data);
+      showToast('Usuario creado correctamente', 'success');
+    }
+    closeUsuarioModal();
+    await renderUsuarios();
+  } catch (err) {
+    showToast(err.message, 'error');
+  }
 }
 
 // =============================================

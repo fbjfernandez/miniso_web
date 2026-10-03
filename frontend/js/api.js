@@ -1,46 +1,38 @@
 // js/api.js
-// Capa de comunicación entre el frontend y el backend Express
-// Equivalente al flujo: FrmXxx → Servlet → Service → DAO
-
 const API_URL = 'https://miniso-web.onrender.com/api';
 
-// Helper base para todas las llamadas
 async function request(method, endpoint, body = null) {
-  const options = {
-    method,
-    headers: { 'Content-Type': 'application/json' },
+  const headers = {
+    'Content-Type': 'application/json',
+    'x-user-role': (typeof APP !== 'undefined' && APP.currentUser) ? APP.currentUser.rol : ''
   };
+
+  const options = { method, headers };
   if (body) options.body = JSON.stringify(body);
 
-  const res  = await fetch(`${API_URL}${endpoint}`, options);
-  const headers = {
-  'Content-Type': 'application/json',
-  'x-user-role': APP.currentUser ? APP.currentUser.rol : ''
-};
+  const res = await fetch(`${API_URL}${endpoint}`, options);
   const json = await res.json();
 
   if (!json.ok) throw new Error(json.error || 'Error en el servidor');
   return json.data;
 }
 
-// ── Atajos ──
 const get  = (endpoint)       => request('GET',  endpoint);
 const post = (endpoint, body) => request('POST', endpoint, body);
 const put  = (endpoint, body) => request('PUT',  endpoint, body);
 
-// ── AUTH ──
 const API = {
   login: (username, password) => post('/login', { username, password }),
 
   // ── USUARIOS ──
-  getUsuarios:   ()           => get('/usuarios'),
-  createUsuario: (data)       => post('/usuarios', data),
-  updateUsuario: (id, data)   => put(`/usuarios/${id}`, data),
+  getUsuarios:   ()         => get('/usuarios'),
+  createUsuario: (data)     => post('/usuarios', data),
+  updateUsuario: (id, data) => put(`/usuarios/${id}`, data),
 
   // ── CLIENTES ──
-  getClientes:   ()           => get('/clientes'),
-  createCliente: (data)       => post('/clientes', data),
-  updateCliente: (id, data)   => put(`/clientes/${id}`, data),
+  getClientes:   ()         => get('/clientes'),
+  createCliente: (data)     => post('/clientes', data),
+  updateCliente: (id, data) => put(`/clientes/${id}`, data),
 
   // ── PRODUCTOS ──
   getProductos:      ()       => get('/productos'),
@@ -60,8 +52,8 @@ const API = {
   getDetalleVenta:     (id)   => get(`/ventas/${id}/detalle`),
 
   // ── ÓRDENES DE COMPRA ──
-  getOrdenes:      ()         => get('/ordenes-compra'),
-  createOrden:     (data)     => post('/ordenes-compra', data),
+  getOrdenes:        ()       => get('/ordenes-compra'),
+  createOrden:       (data)   => post('/ordenes-compra', data),
   updateOrdenEstado: (id, estado) => put(`/ordenes-compra/${id}/estado`, { estado }),
 
   // ── ENTRADAS ──

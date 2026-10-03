@@ -53,21 +53,39 @@ router.post('/login', async (req, res) => {
   } catch (e) { handleError(res, e); }
 });
 
-router.get('/usuarios', autorizarRoles('Administrador'), async (req, res) => {
-  try { res.json({ ok: true, data: await UsuarioDAO.findAll() }); }
-  catch (e) { handleError(res, e); }
-});
-
 router.post('/usuarios', autorizarRoles('Administrador'), async (req, res) => {
-  try { res.json({ ok: true, data: await UsuarioDAO.create(req.body) }); }
-  catch (e) { handleError(res, e); }
-});
+  try {
+    const { nombre, apellido_paterno, apellido_materno, username, password, rol } = req.body;
 
-router.put('/usuarios/:id', autorizarRoles('Administrador'), async (req, res) => {
-  try { res.json({ ok: true, data: await UsuarioDAO.update(req.params.id, req.body) }); }
-  catch (e) { handleError(res, e); }
-});
+    if (!nombre || !apellido_paterno || !username || !password || !rol) {
+      return res.status(400).json({
+        ok: false,
+        error: 'Los campos Nombre, Apellido Paterno, Usuario, Contraseña y Rol son obligatorios.'
+      });
+    }
 
+    const rolesValidos = ['Cajero', 'Administrador', 'Almacenero'];
+    if (!rolesValidos.includes(rol)) {
+      return res.status(400).json({
+        ok: false,
+        error: 'El rol seleccionado no es válido.'
+      });
+    }
+
+    const nuevoUsuario = await UsuarioDAO.create({
+      nombre: nombre.trim(),
+      apellido_paterno: apellido_paterno.trim(),
+      apellido_materno: apellido_materno ? apellido_materno.trim() : '',
+      username: username.trim(),
+      password,
+      rol
+    });
+
+    res.status(201).json({ ok: true, data: nuevoUsuario });
+  } catch (e) { 
+    handleError(res, e); 
+  }
+});
 router.get('/clientes', autorizarRoles('Cajero', 'Administrador'), async (req, res) => {
   try { res.json({ ok: true, data: await ClienteService.listar() }); }
   catch (e) { handleError(res, e); }

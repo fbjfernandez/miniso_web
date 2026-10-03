@@ -1,8 +1,5 @@
-const { createClient } = require('@supabase/supabase-js');
+const supabase = require('../config/supabase');
 const bcrypt = require('bcryptjs');
-require('dotenv').config();
-
-const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_KEY);
 
 const UsuarioDAO = {
   async login(username, password) {
@@ -69,8 +66,8 @@ const UsuarioDAO = {
   async create(usuario) {
     const { username, password, nombre, apellido_paterno, apellido_materno, rol } = usuario;
 
-    if (!username || !password || !nombre || !rol) {
-      throw new Error('Campos obligatorios incompletos');
+    if (!username || !password || !nombre || !apellido_paterno || !rol) {
+      throw new Error('Campos obligatorios incompletos: Nombre, Apellido Paterno, Usuario, Contraseña y Rol son requeridos.');
     }
 
     const hashedPassword = await bcrypt.hash(password, 10);
@@ -81,7 +78,7 @@ const UsuarioDAO = {
         username,
         password: hashedPassword,
         nombre,
-        apellido_paterno: apellido_paterno || '',
+        apellido_paterno,
         apellido_materno: apellido_materno || '',
         rol,
         activo: true,
