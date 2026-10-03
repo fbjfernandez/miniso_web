@@ -13,6 +13,10 @@ async function request(method, endpoint, body = null) {
   if (body) options.body = JSON.stringify(body);
 
   const res  = await fetch(`${API_URL}${endpoint}`, options);
+  const headers = {
+  'Content-Type': 'application/json',
+  'x-user-role': APP.currentUser ? APP.currentUser.rol : ''
+};
   const json = await res.json();
 
   if (!json.ok) throw new Error(json.error || 'Error en el servidor');

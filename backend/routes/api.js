@@ -1,7 +1,3 @@
-// routes/api.js
-// Equivalente a: r4 : ClienteServlet / r4 : OrdenCompraServlet
-// del diagrama de secuencia
-
 const express         = require('express');
 const router          = express.Router();
 
@@ -13,102 +9,111 @@ const EntradaService  = require('../service/EntradaService');
 const ProductoDAO     = require('../dao/ProductoDAO');
 const ProveedorDAO    = require('../dao/ProveedorDAO');
 
-// Helper para respuestas de error
 function handleError(res, error) {
   console.error(error.message);
   res.status(400).json({ ok: false, error: error.message });
 }
 
-// ─────────────────────────────────────────────
-// AUTH
-// POST /api/login
-// Paso 6 del diagrama: invoca interfaz → servlet → service → DAO
-// ─────────────────────────────────────────────
+
+const autorizarRoles = (...rolesPermitidos) => {
+  return (req, res, next) => {
+    const userRole = req.headers['x-user-role'];
+
+    if (!userRole) {
+      return res.status(401).json({ 
+        ok: false, 
+        error: 'No autenticado: Debe proporcionar el rol en la cabecera x-user-role' 
+      });
+    }
+
+    if (!rolesPermitidos.includes(userRole)) {
+      return res.status(403).json({ 
+        ok: false, 
+        error: 'Acceso denegado: No cuenta con los permisos necesarios para realizar esta acción (Forbidden)' 
+      });
+    }
+
+    next();
+  };
+};
+
 router.post('/login', async (req, res) => {
   try {
     const { username, password } = req.body;
-    const usuario = await UsuarioDAO.findByCredentials(username, password);
-    if (!usuario) return res.status(401).json({ ok: false, error: 'Usuario o contraseña incorrectos' });
-    res.json({ ok: true, data: usuario });
+    if (!username || !password) {
+      return res.status(400).json({ ok: false, error: 'Ingrese usuario y contraseña' });
+    }
+
+    const result = await UsuarioDAO.login(username, password);
+    if (!result.ok) {
+      return res.status(result.status).json({ ok: false, error: result.error });
+    }
+
+    res.json({ ok: true, data: result.data });
   } catch (e) { handleError(res, e); }
 });
 
-// ─────────────────────────────────────────────
-// USUARIOS
-// ─────────────────────────────────────────────
-router.get('/usuarios', async (req, res) => {
+router.get('/usuarios', autorizarRoles('Administrador'), async (req, res) => {
   try { res.json({ ok: true, data: await UsuarioDAO.findAll() }); }
   catch (e) { handleError(res, e); }
 });
 
-router.post('/usuarios', async (req, res) => {
+router.post('/usuarios', autorizarRoles('Administrador'), async (req, res) => {
   try { res.json({ ok: true, data: await UsuarioDAO.create(req.body) }); }
   catch (e) { handleError(res, e); }
 });
 
-router.put('/usuarios/:id', async (req, res) => {
+router.put('/usuarios/:id', autorizarRoles('Administrador'), async (req, res) => {
   try { res.json({ ok: true, data: await UsuarioDAO.update(req.params.id, req.body) }); }
   catch (e) { handleError(res, e); }
 });
 
-// ─────────────────────────────────────────────
-// CLIENTES  (flujo: Registrar Cliente)
-// ─────────────────────────────────────────────
-router.get('/clientes', async (req, res) => {
+router.get('/clientes', autorizarRoles('Cajero', 'Administrador'), async (req, res) => {
   try { res.json({ ok: true, data: await ClienteService.listar() }); }
   catch (e) { handleError(res, e); }
 });
 
-// POST /api/clientes → pasos 6-13 del diagrama Registrar Cliente
-router.post('/clientes', async (req, res) => {
+router.post('/clientes', autorizarRoles('Cajero', 'Administrador'), async (req, res) => {
   try {
     const cliente = await ClienteService.registrar(req.body);
-    // Paso 13: Mostrar mensaje de éxito (retorna JSON al frontend)
     res.json({ ok: true, data: cliente, mensaje: 'Cliente registrado correctamente' });
   } catch (e) { handleError(res, e); }
 });
 
-router.put('/clientes/:id', async (req, res) => {
+router.put('/clientes/:id', autorizarRoles('Cajero', 'Administrador'), async (req, res) => {
   try { res.json({ ok: true, data: await ClienteService.actualizar(req.params.id, req.body) }); }
   catch (e) { handleError(res, e); }
 });
 
-// ─────────────────────────────────────────────
-// PRODUCTOS
-// ─────────────────────────────────────────────
-router.get('/productos', async (req, res) => {
+router.get('/productos', autorizarRoles('Cajero', 'Administrador', 'Almacenero'), async (req, res) => {
   try { res.json({ ok: true, data: await ProductoDAO.findAll() }); }
   catch (e) { handleError(res, e); }
 });
 
-router.get('/productos/stock-bajo', async (req, res) => {
+router.get('/productos/stock-bajo', autorizarRoles('Administrador', 'Almacenero'), async (req, res) => {
   try { res.json({ ok: true, data: await ProductoDAO.findStockBajo() }); }
   catch (e) { handleError(res, e); }
 });
 
-router.post('/productos', async (req, res) => {
+router.post('/productos', autorizarRoles('Administrador', 'Almacenero'), async (req, res) => {
   try {
     const id = await ProductoDAO.getNextId();
     res.json({ ok: true, data: await ProductoDAO.create({ id, ...req.body }) });
   } catch (e) { handleError(res, e); }
 });
 
-router.put('/productos/:id', async (req, res) => {
+router.put('/productos/:id', autorizarRoles('Administrador', 'Almacenero'), async (req, res) => {
   try { res.json({ ok: true, data: await ProductoDAO.update(req.params.id, req.body) }); }
   catch (e) { handleError(res, e); }
 });
 
-// ─────────────────────────────────────────────
-// PROVEEDORES  (flujo: Buscar Proveedor pasos 6-10)
-// ─────────────────────────────────────────────
-router.get('/proveedores', async (req, res) => {
+router.get('/proveedores', autorizarRoles('Administrador', 'Almacenero'), async (req, res) => {
   try { res.json({ ok: true, data: await ProveedorDAO.findAll() }); }
   catch (e) { handleError(res, e); }
 });
 
-router.post('/proveedores', async (req, res) => {
+router.post('/proveedores', autorizarRoles('Administrador'), async (req, res) => {
   try {
-    // Validar RUC duplicado
     const existe = await ProveedorDAO.findByRuc(req.body.ruc);
     if (existe) return handleError(res, new Error(`Ya existe un proveedor con RUC ${req.body.ruc}`));
     const id = await ProveedorDAO.getNextId();
@@ -116,27 +121,28 @@ router.post('/proveedores', async (req, res) => {
   } catch (e) { handleError(res, e); }
 });
 
-router.put('/proveedores/:id', async (req, res) => {
+router.put('/proveedores/:id', autorizarRoles('Administrador'), async (req, res) => {
   try { res.json({ ok: true, data: await ProveedorDAO.update(req.params.id, req.body) }); }
   catch (e) { handleError(res, e); }
 });
 
-// ─────────────────────────────────────────────
-// VENTAS
-// ─────────────────────────────────────────────
-router.get('/ventas', async (req, res) => {
+router.get('/ventas', autorizarRoles('Cajero', 'Administrador'), async (req, res) => {
   try { res.json({ ok: true, data: await VentaService.listar() }); }
   catch (e) { handleError(res, e); }
 });
 
-router.post('/ventas', async (req, res) => {
+router.post('/ventas', autorizarRoles('Cajero', 'Administrador'), async (req, res) => {
   try {
+    const { id_cliente, username_cajero, items } = req.body;
+    if (!id_cliente || !username_cajero || !items || !items.length) {
+      return res.status(400).json({ ok: false, error: 'Estructura de venta inválida o cliente no seleccionado' });
+    }
     const venta = await VentaService.registrar(req.body);
-    res.json({ ok: true, data: venta, mensaje: 'Venta registrada correctamente' });
+    res.status(201).json({ ok: true, data: venta, mensaje: `Comprobante ${venta.comprobante || venta.id} emitido correctamente` });
   } catch (e) { handleError(res, e); }
 });
 
-router.get('/ventas/:id/detalle', async (req, res) => {
+router.get('/ventas/:id/detalle', autorizarRoles('Cajero', 'Administrador'), async (req, res) => {
   try {
     const supabase = require('../config/supabase');
     const { data, error } = await supabase
@@ -148,19 +154,7 @@ router.get('/ventas/:id/detalle', async (req, res) => {
   } catch(e) { res.status(400).json({ ok: false, error: e.message }); }
 });
 
-router.get('/ventas/:id/detalle', async (req, res) => {
-  try {
-    const supabase = require('../config/supabase');
-    const { data, error } = await supabase
-      .from('detalle_venta')
-      .select('id_producto, cantidad, precio_unit, subtotal')
-      .eq('id_venta', req.params.id);
-    if (error) throw error;
-    res.json({ ok: true, data });
-  } catch(e) { res.status(400).json({ ok: false, error: e.message }); }
-});
-
-router.put('/ventas/:id/devolucion', async (req, res) => {
+router.put('/ventas/:id/devolucion', autorizarRoles('Cajero', 'Administrador'), async (req, res) => {
   try {
     const venta = await VentaService.registrarDevolucion(req.params.id);
     res.json({ ok: true, data: venta, mensaje: 'Devolución registrada correctamente' });
@@ -168,53 +162,43 @@ router.put('/ventas/:id/devolucion', async (req, res) => {
 });
 
 // ─────────────────────────────────────────────
-// ÓRDENES DE COMPRA  (flujo: Generar Orden de Compra)
-// ─────────────────────────────────────────────
-router.get('/ordenes-compra', async (req, res) => {
+router.get('/ordenes-compra', autorizarRoles('Administrador', 'Almacenero'), async (req, res) => {
   try { res.json({ ok: true, data: await OrdenCompraService.listar() }); }
   catch (e) { handleError(res, e); }
 });
 
-// POST /api/ordenes-compra → pasos 17-23 del diagrama
-router.post('/ordenes-compra', async (req, res) => {
+router.post('/ordenes-compra', autorizarRoles('Administrador'), async (req, res) => {
   try {
     const orden = await OrdenCompraService.grabar(req.body);
-    // Paso 24: Muestra mensaje "Orden registrada correctamente"
     res.json({ ok: true, data: orden, mensaje: 'Orden registrada correctamente' });
   } catch (e) { handleError(res, e); }
 });
 
-router.put('/ordenes-compra/:id/estado', async (req, res) => {
+router.put('/ordenes-compra/:id/estado', autorizarRoles('Administrador', 'Almacenero'), async (req, res) => {
   try {
     const orden = await OrdenCompraService.actualizarEstado(req.params.id, req.body.estado);
     res.json({ ok: true, data: orden });
   } catch (e) { handleError(res, e); }
 });
 
-// ─────────────────────────────────────────────
-// ENTRADAS DE INVENTARIO
-// ─────────────────────────────────────────────
-router.get('/entradas', async (req, res) => {
+router.get('/entradas', autorizarRoles('Almacenero', 'Administrador'), async (req, res) => {
   try { res.json({ ok: true, data: await EntradaService.listar() }); }
   catch (e) { handleError(res, e); }
 });
 
-router.post('/entradas', async (req, res) => {
+router.post('/entradas', autorizarRoles('Almacenero', 'Administrador'), async (req, res) => {
   try {
     const entrada = await EntradaService.registrar(req.body);
     res.json({ ok: true, data: entrada, mensaje: 'Entrada registrada correctamente' });
   } catch (e) { handleError(res, e); }
 });
 
-// ─────────────────────────────────────────────
-// REPORTES (usan las vistas del SQL)
-// ─────────────────────────────────────────────
-router.get('/reportes/ventas', async (req, res) => {
+router.get('/reportes/ventas', autorizarRoles('Administrador'), async (req, res) => {
   try { res.json({ ok: true, data: await VentaService.listar() }); }
   catch (e) { handleError(res, e); }
 });
 
-router.get('/reportes/inventario', async (req, res) => {
+router.get('/reportes/inventario', autorizarRoles('Administrador', 'Almacenero'), async (req, res) => {
   try {
     const supabase = require('../config/supabase');
     const { data, error } = await supabase.from('v_reporte_inventario').select('*');
