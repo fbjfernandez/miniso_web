@@ -14,7 +14,6 @@ function handleError(res, error) {
   res.status(400).json({ ok: false, error: error.message });
 }
 
-
 const autorizarRoles = (...rolesPermitidos) => {
   return (req, res, next) => {
     const userRole = req.headers['x-user-role'];
@@ -37,6 +36,10 @@ const autorizarRoles = (...rolesPermitidos) => {
   };
 };
 
+// ─────────────────────────────────────────────
+// AUTH & USUARIOS
+// ─────────────────────────────────────────────
+
 router.post('/login', async (req, res) => {
   try {
     const { username, password } = req.body;
@@ -50,6 +53,12 @@ router.post('/login', async (req, res) => {
     }
 
     res.json({ ok: true, data: result.data });
+  } catch (e) { handleError(res, e); }
+});
+
+router.get('/usuarios', autorizarRoles('Administrador'), async (req, res) => {
+  try { 
+    res.json({ ok: true, data: await UsuarioDAO.findAll() }); 
   } catch (e) { handleError(res, e); }
 });
 
@@ -86,6 +95,17 @@ router.post('/usuarios', autorizarRoles('Administrador'), async (req, res) => {
     handleError(res, e); 
   }
 });
+
+router.put('/usuarios/:id', autorizarRoles('Administrador'), async (req, res) => {
+  try { 
+    res.json({ ok: true, data: await UsuarioDAO.update(req.params.id, req.body) }); 
+  } catch (e) { handleError(res, e); }
+});
+
+// ─────────────────────────────────────────────
+// CLIENTES
+// ─────────────────────────────────────────────
+
 router.get('/clientes', autorizarRoles('Cajero', 'Administrador'), async (req, res) => {
   try { res.json({ ok: true, data: await ClienteService.listar() }); }
   catch (e) { handleError(res, e); }
@@ -102,6 +122,10 @@ router.put('/clientes/:id', autorizarRoles('Cajero', 'Administrador'), async (re
   try { res.json({ ok: true, data: await ClienteService.actualizar(req.params.id, req.body) }); }
   catch (e) { handleError(res, e); }
 });
+
+// ─────────────────────────────────────────────
+// PRODUCTOS
+// ─────────────────────────────────────────────
 
 router.get('/productos', autorizarRoles('Cajero', 'Administrador', 'Almacenero'), async (req, res) => {
   try { res.json({ ok: true, data: await ProductoDAO.findAll() }); }
@@ -125,6 +149,10 @@ router.put('/productos/:id', autorizarRoles('Administrador', 'Almacenero'), asyn
   catch (e) { handleError(res, e); }
 });
 
+// ─────────────────────────────────────────────
+// PROVEEDORES
+// ─────────────────────────────────────────────
+
 router.get('/proveedores', autorizarRoles('Administrador', 'Almacenero'), async (req, res) => {
   try { res.json({ ok: true, data: await ProveedorDAO.findAll() }); }
   catch (e) { handleError(res, e); }
@@ -143,6 +171,10 @@ router.put('/proveedores/:id', autorizarRoles('Administrador'), async (req, res)
   try { res.json({ ok: true, data: await ProveedorDAO.update(req.params.id, req.body) }); }
   catch (e) { handleError(res, e); }
 });
+
+// ─────────────────────────────────────────────
+// VENTAS
+// ─────────────────────────────────────────────
 
 router.get('/ventas', autorizarRoles('Cajero', 'Administrador'), async (req, res) => {
   try { res.json({ ok: true, data: await VentaService.listar() }); }
@@ -180,6 +212,9 @@ router.put('/ventas/:id/devolucion', autorizarRoles('Cajero', 'Administrador'), 
 });
 
 // ─────────────────────────────────────────────
+// ÓRDENES DE COMPRA
+// ─────────────────────────────────────────────
+
 router.get('/ordenes-compra', autorizarRoles('Administrador', 'Almacenero'), async (req, res) => {
   try { res.json({ ok: true, data: await OrdenCompraService.listar() }); }
   catch (e) { handleError(res, e); }
@@ -199,6 +234,10 @@ router.put('/ordenes-compra/:id/estado', autorizarRoles('Administrador', 'Almace
   } catch (e) { handleError(res, e); }
 });
 
+// ─────────────────────────────────────────────
+// ENTRADAS DE ALMACÉN
+// ─────────────────────────────────────────────
+
 router.get('/entradas', autorizarRoles('Almacenero', 'Administrador'), async (req, res) => {
   try { res.json({ ok: true, data: await EntradaService.listar() }); }
   catch (e) { handleError(res, e); }
@@ -210,6 +249,10 @@ router.post('/entradas', autorizarRoles('Almacenero', 'Administrador'), async (r
     res.json({ ok: true, data: entrada, mensaje: 'Entrada registrada correctamente' });
   } catch (e) { handleError(res, e); }
 });
+
+// ─────────────────────────────────────────────
+// REPORTES
+// ─────────────────────────────────────────────
 
 router.get('/reportes/ventas', autorizarRoles('Administrador'), async (req, res) => {
   try { res.json({ ok: true, data: await VentaService.listar() }); }
