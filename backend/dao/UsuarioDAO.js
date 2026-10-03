@@ -13,15 +13,11 @@ const UsuarioDAO = {
       .single();
 
     if (error || !user || !user.activo) {
-      return { ok: false, status: 401, error: 'Usuario o contraseña incorrectos' };
+      return { ok: false, status: 401, error: 'Credenciales inválidas' };
     }
 
     if (user.bloqueado) {
-      return {
-        ok: false,
-        status: 403,
-        error: 'Cuenta bloqueada por superar el límite de 5 intentos fallidos. Contacte al Administrador.'
-      };
+      return { ok: false, status: 403, error: 'Usuario bloqueado. Contacte al administrador' };
     }
 
     const passwordMatch = await bcrypt.compare(password, user.password);
@@ -39,17 +35,13 @@ const UsuarioDAO = {
         .eq('id', user.id);
 
       if (debeBloquear) {
-        return {
-          ok: false,
-          status: 403,
-          error: 'Has superado los 5 intentos fallidos. Tu cuenta ha sido bloqueada.'
-        };
+        return { ok: false, status: 403, error: 'Usuario bloqueado por superar el límite de intentos' };
       }
 
       return {
         ok: false,
         status: 401,
-        error: `Usuario o contraseña incorrectos. Intentos restantes: ${5 - nuevosIntentos}`
+        error: `Credenciales inválidas. Intentos restantes: ${5 - nuevosIntentos}`
       };
     }
 
@@ -69,7 +61,8 @@ const UsuarioDAO = {
       .from('usuario')
       .select('id, username, nombre, apellido_paterno, apellido_materno, rol, activo, bloqueado')
       .order('id');
-    if (error) throw error;
+
+    if (error) throw new Error(error.message);
     return data;
   },
 
@@ -77,7 +70,7 @@ const UsuarioDAO = {
     const { username, password, nombre, apellido_paterno, apellido_materno, rol } = usuario;
 
     if (!username || !password || !nombre || !rol) {
-      throw new Error('Faltan campos obligatorios para crear el usuario');
+      throw new Error('Campos obligatorios incompletos');
     }
 
     const hashedPassword = await bcrypt.hash(password, 10);
@@ -98,7 +91,7 @@ const UsuarioDAO = {
       .select('id, username, nombre, apellido_paterno, apellido_materno, rol, activo')
       .single();
 
-    if (error) throw error;
+    if (error) throw new Error(error.message);
     return data;
   },
 
@@ -116,7 +109,7 @@ const UsuarioDAO = {
       .select('id, username, nombre, apellido_paterno, apellido_materno, rol, activo, bloqueado')
       .single();
 
-    if (error) throw error;
+    if (error) throw new Error(error.message);
     return data;
   }
 };
