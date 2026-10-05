@@ -85,9 +85,17 @@
 <details>
 <summary>📸 Ver capturas</summary>
 
-| 403 en Network | Supabase en tiempo real |
-|---|---|
-| ![403](docs/403-network.png) | ![Supabase](docs/supabase-stock.png) |
+| 403 en Network |
+|---|
+| <img width="617" height="304" alt="image" src="https://github.com/user-attachments/assets/c5f67348-2496-43cd-a89e-e1063b6ec7e6" />
+
+| Supabase en tiempo real |
+|---|
+| <img width="1548" height="403" alt="image" src="https://github.com/user-attachments/assets/faef1be0-d4b0-49e3-acfc-754bf2890e1b" />
+| <img width="1454" height="346" alt="image" src="https://github.com/user-attachments/assets/19d11ebc-423d-4f4c-8808-b233ef632219" />
+
+
+
 
 </details>
 
