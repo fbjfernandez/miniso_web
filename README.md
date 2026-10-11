@@ -2,7 +2,7 @@
 
 # 🛒 MINISO | Enterprise POS, Inventory & RBAC Engine `V1.01`
 
-**Sistema POS e inventario con ventas atómicas, control de roles y protección anti-fuerza bruta.**
+**Sistema POS e inventario de ventas, control de roles y protección anti-fuerza bruta.**
 
 ![Node.js](https://img.shields.io/badge/Node.js-339933?style=flat-square&logo=nodedotjs&logoColor=white)
 ![Express](https://img.shields.io/badge/Express-000000?style=flat-square&logo=express&logoColor=white)
