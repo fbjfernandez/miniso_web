@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 node_modules/
 backend/node_modules/
 .env
@@ -6,3 +7,6 @@ venv/
 .pytest_cache/
 __pycache__/
 *.png
+=======
+/.vscode
+>>>>>>> 0ebc081 (Completando base de datos con triggers, restricciones y funciones para agregar, actualizar y restar stock automaticamente. Mejora de visualizacion de busqueda de clientes y completando funciones de toda la app.)
