@@ -17,11 +17,17 @@ const app = express();
 const PORT = process.env.PORT || 3000;
 
 const origenes = (process.env.ALLOWED_ORIGINS ||
-  'http://localhost:5500,http://127.0.0.1:5500,http://localhost:3000,https://miniso-web-omega.vercel.app,null')
+  'http://localhost:5500,http://127.0.0.1:5500,http://localhost:3000,https://vercel.app')
   .split(',').map(s => s.trim()).filter(Boolean);
 
 app.use(cors({
-  origin: origenes,
+  origin: function (origin, callback) {
+    if (!origin || origin === 'null' || origenes.includes(origin)) {
+      callback(null, true);
+    } else {
+      callback(new Error('Bloqueado por CORS'));
+    }
+  },
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization'],
 }));
