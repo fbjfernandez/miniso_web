@@ -39,7 +39,7 @@ function renderLogin() {
 async function handleLogin(e) {
   e.preventDefault();
   const username  = document.getElementById('login-user').value.trim();
-  const password  = document.getElementById('login-pass').value.trim();
+  const password  = document.getElementById('login-pass').value;
   const errorBox  = document.getElementById('login-error');
   const submitBtn = e.target.querySelector('button[type=submit]');
 
@@ -50,10 +50,12 @@ async function handleLogin(e) {
     const user = await API.login(username, password);
     APP.currentUser = user;
     APP.currentPage = 'dashboard';
+    APP.datosCargados = false;
+    guardarSesion();
     renderApp();
     showToast(`Bienvenido, ${user.nombre}`, 'success');
   } catch (err) {
-    errorBox.innerHTML    = `<div class="alert alert-error">${ICONS.alert}${err.message}</div>`;
+    errorBox.innerHTML    = `<div class="alert alert-error">${ICONS.alert}${esc(err.message)}</div>`;
     submitBtn.disabled    = false;
     submitBtn.textContent = 'Ingresar';
   }
@@ -66,10 +68,10 @@ function renderDashboard() {
 
   if (u.rol === 'Cajero') {
     const misVentas = DB.ventas.filter(v => v.cajero === u.username);
-    const totalHoy = misVentas.reduce((s, v) => s + (v.estado === 'Completada' ? v.total : 0), 0);
+    const totalHoy = misVentas.reduce((s, v) => s + (v.estado === 'Completada' ? v.total - v.monto_devuelto : 0), 0);
     content = `
       <div class="page-header">
-        <div class="page-title">Hola, ${u.nombre.split(' ')[0]}</div>
+        <div class="page-title">Hola, ${esc(u.nombre.split(' ')[0])}</div>
         <div class="page-subtitle">Resumen de tu actividad como Cajero</div>
       </div>
       <div class="stats-grid">
@@ -106,7 +108,7 @@ function renderDashboard() {
 
   else if (u.rol === 'Administrador') {
     const stockBajo = DB.productos.filter(p => p.stock <= p.stockMin);
-    const totalVentas = DB.ventas.reduce((s, v) => s + (v.estado === 'Completada' ? v.total : 0), 0);
+    const totalVentas = DB.ventas.reduce((s, v) => s + (v.estado === 'Completada' ? v.total - v.monto_devuelto : 0), 0);
     const ordenesPendientes = DB.ordenes.filter(o => o.estado === 'Pendiente').length;
     content = `
       <div class="page-header">
@@ -146,7 +148,7 @@ function renderDashboard() {
             <tbody>
               ${stockBajo.length ? stockBajo.map(p => `
                 <tr>
-                  <td>${p.nombre}</td><td>${p.categoria}</td><td>${p.stock}</td><td>${p.stockMin}</td>
+                  <td>${esc(p.nombre)}</td><td>${esc(p.categoria)}</td><td>${p.stock}</td><td>${p.stockMin}</td>
                   <td><span class="badge badge-error">Crítico</span></td>
                 </tr>`).join('') : `<tr><td colspan="5" style="text-align:center;color:var(--gray-400);">Sin alertas de stock</td></tr>`}
             </tbody>
@@ -159,7 +161,7 @@ function renderDashboard() {
     const stockBajo = DB.productos.filter(p => p.stock <= p.stockMin);
     content = `
       <div class="page-header">
-        <div class="page-title">Hola, ${u.nombre.split(' ')[0]}</div>
+        <div class="page-title">Hola, ${esc(u.nombre.split(' ')[0])}</div>
         <div class="page-subtitle">Resumen de almacén e inventario</div>
       </div>
       <div class="stats-grid">
@@ -209,11 +211,11 @@ async function renderClientes() {
   }
   const rows = DB.clientes.map(c => `
     <tr>
-      <td><strong>${c.id}</strong></td>
-      <td>${c.nombre}</td>
-      <td>${c.dni}</td>
-      <td>${c.email}</td>
-      <td>${c.telefono}</td>
+      <td><strong>${esc(c.id)}</strong></td>
+      <td>${esc(c.nombre)}</td>
+      <td>${esc(c.dni)}</td>
+      <td>${esc(c.email)}</td>
+      <td>${esc(c.telefono)}</td>
       <td><span class="badge badge-info">${c.puntos} pts</span></td>
       <td>
         <button class="btn btn-sm btn-ghost" onclick="openClienteModal('${c.id}')" title="Editar">${ICONS.edit}</button>
@@ -257,19 +259,19 @@ function openClienteModal(clienteId) {
             <div class="form-grid">
               <div class="form-group span-2">
                 <label>Nombre completo</label>
-                <input type="text" id="cl-nombre" value="${editing ? editing.nombre : ''}" required>
+                <input type="text" id="cl-nombre" value="${esc(editing ? editing.nombre : '')}" required>
               </div>
               <div class="form-group">
                 <label>DNI</label>
-                <input type="text" id="cl-dni" maxlength="8" value="${editing ? editing.dni : ''}" required>
+                <input type="text" id="cl-dni" maxlength="8" value="${esc(editing ? editing.dni : '')}" required>
               </div>
               <div class="form-group">
                 <label>Teléfono</label>
-                <input type="text" id="cl-telefono" value="${editing ? editing.telefono : ''}" required>
+                <input type="text" id="cl-telefono" value="${esc(editing ? editing.telefono : '')}" required>
               </div>
               <div class="form-group span-2">
                 <label>Email</label>
-                <input type="email" id="cl-email" value="${editing ? editing.email : ''}" required>
+                <input type="email" id="cl-email" value="${esc(editing ? editing.email : '')}" required>
               </div>
             </div>
           </div>
@@ -295,16 +297,23 @@ async function submitCliente(e, clienteId) {
     email:    document.getElementById('cl-email').value.trim(),
   };
   try {
+    let nuevo = null;
     if (clienteId) {
-      // Pasos 7-12 diagrama: valida, verifica existencia, graba en BD
       await API.updateCliente(clienteId, data);
       showToast('Cliente actualizado correctamente', 'success');
     } else {
-      await API.createCliente(data);
+      nuevo = await API.createCliente(data);
       showToast('Cliente registrado correctamente', 'success');
     }
     closeClienteModal();
-    await renderClientes(); // recarga desde Supabase
+    // Si se registró desde la pantalla de venta: quedarse ahí (sin perder el carrito) y seleccionarlo
+    if (nuevo && APP.currentPage === 'registrar-venta') {
+      DB.clientes = await API.getClientes();
+      ventaClienteSeleccionado = DB.clientes.find(c => c.id === nuevo.id) || nuevo;
+      document.getElementById('venta-cliente-box').innerHTML = clienteBoxHTML();
+      return;
+    }
+    await renderClientes(); // recarga desde la BD
   } catch(err) {
     showToast(err.message, 'error');
   }
@@ -376,8 +385,8 @@ function productoRowsVenta(list) {
   if (!list.length) return `<tr><td colspan="5" style="text-align:center;color:var(--gray-400);">Sin resultados</td></tr>`;
   return list.map(p => `
     <tr>
-      <td>${p.id}</td>
-      <td>${p.nombre}</td>
+      <td>${esc(p.id)}</td>
+      <td>${esc(p.nombre)}</td>
       <td>S/ ${p.precio.toFixed(2)}</td>
       <td>${p.stock <= p.stockMin ? `<span class="badge badge-warning">${p.stock}</span>` : p.stock}</td>
       <td><button class="btn btn-sm btn-outline" ${p.stock === 0 ? 'disabled' : ''} onclick="addToCart('${p.id}')">${ICONS.plus}</button></td>
@@ -393,10 +402,10 @@ function filtrarProductosVenta(query) {
 function clienteBoxHTML() {
   if (!ventaClienteSeleccionado) {
     return `
-      <div class="form-group">
-        <input type="text" id="venta-buscar-cliente" placeholder="Buscar por nombre o DNI..." oninput="filtrarClientesVenta(this.value)">
+      <div class="busqueda-wrap" style="position:relative; margin-bottom:14px;">
+        <input type="text" id="venta-buscar-cliente" placeholder="Buscar por nombre o DNI..." autocomplete="off" onfocus="mostrarLista('venta-clientes-resultados')" onclick="mostrarLista('venta-clientes-resultados')" oninput="filtrarClientesVenta(this.value)">
+        <div id="venta-clientes-resultados" class="lista-busqueda" style="display:none;">${clientesListaHTML('')}</div>
       </div>
-      <div id="venta-clientes-resultados" style="max-height:160px; overflow-y:auto;"></div>
       <div class="divider"></div>
       <button class="btn btn-ghost btn-sm" style="width:100%; justify-content:center;" onclick="openClienteModalVenta()">
         ${ICONS.plus} Registrar nuevo cliente
@@ -407,8 +416,8 @@ function clienteBoxHTML() {
     <div class="alert alert-info" style="align-items:flex-start;">
       ${ICONS.users}
       <div>
-        <strong>${c.nombre}</strong><br>
-        <span style="font-size:12px;">DNI: ${c.dni} · ${c.puntos} pts acumulados</span>
+        <strong>${esc(c.nombre)}</strong><br>
+        <span style="font-size:12px;">DNI: ${esc(c.dni)} · ${c.puntos} pts acumulados</span>
       </div>
     </div>
     <button class="btn btn-ghost btn-sm" style="width:100%; justify-content:center; margin-top:8px;" onclick="quitarClienteVenta()">
@@ -416,15 +425,25 @@ function clienteBoxHTML() {
     </button>`;
 }
 
+// Sin texto muestra TODOS los clientes guardados; al escribir filtra por nombre o DNI
+function clientesListaHTML(query) {
+  const q = (query || '').toLowerCase().trim();
+  if (!DB.clientes.length) return `<div class="item-busqueda-vacio">No hay clientes registrados</div>`;
+  const matches = DB.clientes
+    .filter(c => !q || c.nombre.toLowerCase().includes(q) || String(c.dni).includes(q))
+    .sort((a, b) => a.nombre.localeCompare(b.nombre));
+  return matches.length ? matches.map(c => `
+    <div class="item-busqueda" onclick="seleccionarClienteVenta('${c.id}')">
+      <strong>${esc(c.nombre)}</strong>
+      <span>DNI: ${esc(c.dni)}</span>
+    </div>`).join('') : `<div class="item-busqueda-vacio">Sin coincidencias</div>`;
+}
+
 function filtrarClientesVenta(query) {
-  const q = query.toLowerCase().trim();
   const box = document.getElementById('venta-clientes-resultados');
-  if (!q) { box.innerHTML = ''; return; }
-  const matches = DB.clientes.filter(c => c.nombre.toLowerCase().includes(q) || c.dni.includes(q));
-  box.innerHTML = matches.length ? matches.map(c => `
-    <div class="nav-item" style="border-radius:6px; margin-bottom:4px;" onclick="seleccionarClienteVenta('${c.id}')">
-      <strong style="font-weight:500;">${c.nombre}</strong>&nbsp;<span style="color:var(--gray-400);font-size:12px;">${c.dni}</span>
-    </div>`).join('') : `<div style="padding:8px; color:var(--gray-400); font-size:13px;">Sin coincidencias</div>`;
+  if (!box) return;
+  box.innerHTML = clientesListaHTML(query);
+  mostrarLista('venta-clientes-resultados');
 }
 
 function seleccionarClienteVenta(clienteId) {
@@ -439,7 +458,6 @@ function quitarClienteVenta() {
 
 function openClienteModalVenta() {
   openClienteModal();
-  showToast('Registra al cliente y luego búscalo arriba', 'info');
 }
 
 function addToCart(productId) {
@@ -487,7 +505,7 @@ function cartRowsHTML() {
   }
   return ventaCart.map(item => `
     <tr>
-      <td>${item.nombre}</td>
+      <td>${esc(item.nombre)}</td>
       <td>S/ ${item.precio.toFixed(2)}</td>
       <td>
         <div class="qty-control">
@@ -524,20 +542,21 @@ async function confirmarVenta() {
     }
   }
 
+  const btn = document.querySelector('button[onclick="confirmarVenta()"]');
+  if (btn) btn.disabled = true; // evita doble clic = doble venta
   try {
+    // El precio y el cajero los define el servidor
     const venta = await API.createVenta({
       id_cliente: ventaClienteSeleccionado.id,
-      username_cajero: APP.currentUser.username,
-      items: ventaCart.map(i => ({
-        id_producto: i.id,
-        cantidad: i.cantidad,
-        precio_unit: i.precio,
-      })),
+      items: ventaCart.map(i => ({ id_producto: i.id, cantidad: i.cantidad })),
     });
-    
+
+    invalidarDatos(); // stock y puntos cambiaron: la siguiente pantalla recarga
     showToast(`Comprobante ${venta.comprobante} emitido correctamente. Nota de salida generada.`, 'success');
     navigateTo('dashboard');
   } catch (err) {
+    if (btn) btn.disabled = false;
+    invalidarDatos(); // por si el stock cambió (otro cajero vendió lo mismo)
     showToast(err.message, 'error');
   }
 }
@@ -545,34 +564,32 @@ async function confirmarVenta() {
 // =============================================
 // CAJERO — DEVOLUCIONES
 // =============================================
+let devDetalle = [];
+
 async function renderDevoluciones() {
-  try { 
-    // Garantizamos la carga en paralelo de ventas y clientes desde Supabase
-    const [ventasData, clientesData] = await Promise.all([
-      API.getVentas(),
-      API.getClientes()
-    ]);
+  try {
+    const [ventasData, clientesData] = await Promise.all([API.getVentas(), API.getClientes()]);
     DB.ventas = ventasData;
     DB.clientes = clientesData;
-  } catch(e) {
+  } catch (e) {
     showToast('Error al sincronizar datos: ' + e.message, 'error');
   }
 
   const content = `
     <div class="page-header">
       <div class="page-title">Devoluciones</div>
-      <div class="page-subtitle">Busca una venta y registra la devolución correspondiente</div>
+      <div class="page-subtitle">Busca una venta y registra la devolución total o parcial</div>
     </div>
     <div class="card">
       <div class="card-body">
         <div class="form-group" style="max-width:400px;">
           <label>Buscar Venta</label>
-          <input type="text" id="dev-buscar" placeholder="Código de venta (ej. V001)" oninput="filtrarVentasDevolucion(this.value)">
+          <input type="text" id="dev-buscar" placeholder="Código o boleta (ej. V001, B001-000001)" oninput="filtrarVentasDevolucion(this.value)">
         </div>
       </div>
       <div class="table-wrapper">
         <table>
-          <thead><tr><th>Código</th><th>Fecha</th><th>Cliente</th><th>Total</th><th>Estado</th><th></th></tr></thead>
+          <thead><tr><th>Código</th><th>Boleta</th><th>Fecha</th><th>Cliente</th><th>Total</th><th>Estado</th><th></th></tr></thead>
           <tbody id="dev-tbody">${devolucionRows(DB.ventas)}</tbody>
         </table>
       </div>
@@ -582,22 +599,18 @@ async function renderDevoluciones() {
 }
 
 function devolucionRows(list) {
-  if (!list.length) return `<tr><td colspan="6" style="text-align:center;color:var(--gray-400);">Sin resultados</td></tr>`;
+  if (!list.length) return `<tr><td colspan="7" style="text-align:center;color:var(--gray-400);">Sin resultados</td></tr>`;
   return list.map(v => {
-    // 1. Resolver el objeto cliente buscando por id_cliente o cliente
-    const idCliente = v.id_cliente || v.cliente;
-    const clienteObj = DB.clientes.find(c => String(c.id).trim() === String(idCliente).trim());
-    const nombreCliente = clienteObj ? clienteObj.nombre : (v.nombre_cliente || 'Cliente General');
-
-    // 2. Formatear la fecha
-    const fechaLimpia = formatearFecha(v.fecha);
-
+    const nombreCliente = v.nombre_cliente || 'Cliente General';
+    const devuelto = v.monto_devuelto > 0
+      ? `<div style="font-size:11px;color:var(--gray-400);">Devuelto: S/ ${v.monto_devuelto.toFixed(2)}</div>` : '';
     return `
       <tr>
-        <td><strong>${v.id}</strong></td>
-        <td>${fechaLimpia}</td>
-        <td>${nombreCliente}</td>
-        <td>S/ ${parseFloat(v.total || 0).toFixed(2)}</td>
+        <td><strong>${esc(v.id)}</strong></td>
+        <td>${esc(v.comprobante || '—')}</td>
+        <td>${formatearFecha(v.fecha)}</td>
+        <td>${esc(nombreCliente)}</td>
+        <td>S/ ${Number(v.total || 0).toFixed(2)}${devuelto}</td>
         <td>${estadoVentaBadge(v.estado)}</td>
         <td>
           ${v.estado === 'Completada'
@@ -607,33 +620,28 @@ function devolucionRows(list) {
       </tr>`;
   }).join('');
 }
+
 function estadoVentaBadge(estado) {
   const map = { Completada: 'badge-success', Devuelta: 'badge-error', Pendiente: 'badge-warning' };
-  return `<span class="badge ${map[estado] || 'badge-gray'}">${estado}</span>`;
+  return `<span class="badge ${map[estado] || 'badge-gray'}">${esc(estado)}</span>`;
 }
 
 function filtrarVentasDevolucion(query) {
   const q = query.toLowerCase().trim();
-  const filtered = DB.ventas.filter(v => v.id.toLowerCase().includes(q));
+  const filtered = DB.ventas.filter(v =>
+    v.id.toLowerCase().includes(q) || (v.comprobante || '').toLowerCase().includes(q));
   document.getElementById('dev-tbody').innerHTML = devolucionRows(filtered);
 }
 
-// Abre modal con detalle real desde Supabase
 async function abrirModalDevolucion(ventaId) {
   const venta = DB.ventas.find(v => v.id === ventaId);
   if (!venta) return;
 
-  // Buscar cliente correctamente (Supabase usa id_cliente, mock usa cliente)
-  const idCliente = venta.id_cliente || venta.cliente;
-  const cliente   = DB.clientes.find(c => c.id === idCliente);
-  const total     = parseFloat(venta.total || 0);
-
-  // Mostrar modal con estado de carga primero
   document.getElementById('dev-modal-root').innerHTML = `
     <div class="modal-overlay open" id="dev-modal-overlay">
       <div class="modal">
         <div class="modal-header">
-          <div class="modal-title">Registrar Devolución — ${ventaId}</div>
+          <div class="modal-title">Registrar Devolución — ${esc(ventaId)}</div>
           <button class="modal-close" onclick="cerrarModalDevolucion()">${ICONS.x}</button>
         </div>
         <div class="modal-body" id="dev-modal-body">
@@ -642,52 +650,51 @@ async function abrirModalDevolucion(ventaId) {
       </div>
     </div>`;
 
-  // Cargar detalle de la venta desde el backend
-  let detalleRows = '';
-  let detalleItems = [];
   try {
-    const detalle = await API.getDetalleVenta(ventaId);
-    detalleItems = detalle || [];
-    detalleRows = detalleItems.map(d => {
-      const prod = DB.productos.find(p => p.id === d.id_producto);
-      const nombre = prod ? prod.nombre : d.id_producto;
-      return `<tr>
-        <td>${nombre}</td>
-        <td style="text-align:center;">
-          <div class="qty-control" style="justify-content:center;">
-            <button class="qty-btn" onclick="cambiarCantidadDev('${d.id_producto}', -1, ${d.cantidad})">−</button>
-            <input class="qty-input" id="dev-qty-${d.id_producto}" type="text" value="${d.cantidad}" readonly style="width:40px;">
-            <button class="qty-btn" onclick="cambiarCantidadDev('${d.id_producto}', 1, ${d.cantidad})">+</button>
-          </div>
-        </td>
-        <td>S/ ${parseFloat(d.subtotal||0).toFixed(2)}</td>
-      </tr>`;
-    }).join('');
-  } catch(e) {
-    detalleRows = `<tr><td colspan="3" style="color:var(--gray-400);">Venta total: S/ ${total.toFixed(2)}</td></tr>`;
+    devDetalle = (await API.getDetalleVenta(ventaId)).map(d => ({
+      ...d, pendiente: d.cantidad - d.cantidad_devuelta, devolver: d.cantidad - d.cantidad_devuelta,
+    }));
+  } catch (e) {
+    cerrarModalDevolucion();
+    showToast('No se pudo cargar el detalle: ' + e.message, 'error');
+    return;
   }
+
+  const filas = devDetalle.map(d => `
+    <tr>
+      <td>${esc(d.nombre)}<div style="font-size:11px;color:var(--gray-400);">Vendido: ${d.cantidad}${d.cantidad_devuelta ? ` · Ya devuelto: ${d.cantidad_devuelta}` : ''}</div></td>
+      <td style="text-align:center;">
+        ${d.pendiente > 0 ? `
+        <div class="qty-control" style="justify-content:center;">
+          <button class="qty-btn" onclick="cambiarCantidadDev('${d.id_producto}', -1)">−</button>
+          <input class="qty-input" id="dev-qty-${d.id_producto}" type="text" value="${d.devolver}" readonly style="width:40px;">
+          <button class="qty-btn" onclick="cambiarCantidadDev('${d.id_producto}', 1)">+</button>
+        </div>` : `<span style="color:var(--gray-400);font-size:12px;">Devuelto</span>`}
+      </td>
+      <td>S/ ${d.precio_unit.toFixed(2)}</td>
+    </tr>`).join('');
 
   document.getElementById('dev-modal-body').innerHTML = `
     <div class="alert alert-info" style="margin-bottom:16px;">
       ${ICONS.users}
       <div>
-        <strong>Cliente:</strong> ${cliente ? cliente.nombre : 'Venta sin cliente'}<br>
-        <strong>Fecha de venta:</strong> ${venta.fecha}
+        <strong>Cliente:</strong> ${esc(venta.nombre_cliente || 'Venta sin cliente')}<br>
+        <strong>Fecha de venta:</strong> ${formatearFecha(venta.fecha)} · <strong>Boleta:</strong> ${esc(venta.comprobante || '—')}
       </div>
     </div>
     <div class="table-wrapper" style="margin-bottom:16px;">
       <table>
-        <thead><tr><th>Producto</th><th style="text-align:center;">Cant. a devolver</th><th>Subtotal</th></tr></thead>
-        <tbody>${detalleRows}</tbody>
+        <thead><tr><th>Producto</th><th style="text-align:center;">Cant. a devolver</th><th>P. Unit.</th></tr></thead>
+        <tbody>${filas}</tbody>
       </table>
     </div>
     <div style="background:#fafafa; border-radius:8px; padding:12px 16px; margin-bottom:16px;">
       <div style="font-size:13px; color:#888;">Monto a devolver</div>
-      <div style="font-size:22px; font-weight:700; color:var(--red);">S/ ${total.toFixed(2)}</div>
+      <div style="font-size:22px; font-weight:700; color:var(--red);">S/ <span id="dev-monto">${montoDevolucion().toFixed(2)}</span></div>
     </div>
     <div class="form-group">
       <label>Motivo de la devolución <span style="color:var(--red);">*</span></label>
-      <select id="dev-motivo" required>
+      <select id="dev-motivo">
         <option value="">Selecciona un motivo...</option>
         <option>Producto defectuoso</option>
         <option>Producto incorrecto</option>
@@ -701,77 +708,77 @@ async function abrirModalDevolucion(ventaId) {
       <input type="text" id="dev-motivo-otro" placeholder="Describe el motivo...">
     </div>`;
 
-  document.getElementById('dev-motivo').addEventListener('change', function() {
+  document.getElementById('dev-motivo').addEventListener('change', function () {
     document.getElementById('dev-otro-grupo').style.display = this.value === 'Otro' ? 'block' : 'none';
   });
 
-  // Agregar footer con botones
   document.querySelector('#dev-modal-overlay .modal').insertAdjacentHTML('beforeend', `
     <div class="modal-footer">
       <button class="btn btn-secondary" onclick="cerrarModalDevolucion()">Cancelar</button>
-      <button class="btn btn-primary" onclick="confirmarDevolucion('${ventaId}', ${total})">${ICONS.check} Confirmar Devolución</button>
+      <button class="btn btn-primary" id="dev-confirmar" onclick="confirmarDevolucion('${ventaId}')">${ICONS.check} Confirmar Devolución</button>
     </div>`);
 }
 
-function cambiarCantidadDev(productoId, delta, maxCantidad) {
-  const input = document.getElementById('dev-qty-' + productoId);
-  if (!input) return;
-  let val = parseInt(input.value) + delta;
-  val = Math.max(1, Math.min(maxCantidad, val));
-  input.value = val;
+function montoDevolucion() {
+  return devDetalle.reduce((s, d) => s + d.devolver * d.precio_unit, 0);
+}
+
+function cambiarCantidadDev(productoId, delta) {
+  const d = devDetalle.find(x => x.id_producto === productoId);
+  if (!d) return;
+  d.devolver = Math.max(0, Math.min(d.pendiente, d.devolver + delta));
+  document.getElementById('dev-qty-' + productoId).value = d.devolver;
+  document.getElementById('dev-monto').textContent = montoDevolucion().toFixed(2);
 }
 
 function cerrarModalDevolucion() {
   document.getElementById('dev-modal-root').innerHTML = '';
 }
 
-async function confirmarDevolucion(ventaId, total) {
-  const motivoSelect = document.getElementById('dev-motivo').value;
-  const motivoOtro   = document.getElementById('dev-motivo-otro')?.value || '';
-  const motivo = motivoSelect === 'Otro' ? motivoOtro : motivoSelect;
+async function confirmarDevolucion(ventaId) {
+  const sel = document.getElementById('dev-motivo').value;
+  const otro = (document.getElementById('dev-motivo-otro')?.value || '').trim();
+  const motivo = sel === 'Otro' ? otro : sel;
 
-  if (!motivo) {
-    showToast('Selecciona un motivo para la devolución', 'error');
-    return;
-  }
+  if (!motivo) { showToast('Selecciona un motivo para la devolución', 'error'); return; }
+  const items = devDetalle.filter(d => d.devolver > 0).map(d => ({ id_producto: d.id_producto, cantidad: d.devolver }));
+  if (!items.length) { showToast('Selecciona al menos una unidad para devolver', 'error'); return; }
 
+  const btn = document.getElementById('dev-confirmar');
+  btn.disabled = true;
   try {
-    // Paso 10: venta ya validada al abrir el modal
-    // Paso 11: monto calculado = total de la venta
-    // Paso 12: Grabar devolución en BD
-    await API.registrarDevolucion(ventaId);
+    const r = await API.registrarDevolucion(ventaId, { motivo, items });
     cerrarModalDevolucion();
-    // Paso 13: Mostrar mensaje de éxito con monto
-    showToast(`Devolución de ${ventaId} registrada. Motivo: ${motivo}. Monto: S/ ${parseFloat(total).toFixed(2)}`, 'success');
+    invalidarDatos();
+    showToast(`Devolución ${r.id} registrada. Monto: S/ ${Number(r.monto).toFixed(2)}. El stock fue repuesto.`, 'success');
     await renderDevoluciones();
-  } catch(err) {
+  } catch (err) {
+    btn.disabled = false;
     showToast(err.message, 'error');
   }
 }
 
-async function registrarDevolucion(ventaId) {
-  abrirModalDevolucion(ventaId);
-}
-
 // =============================================
-// ADMINISTRADOR — PRODUCTOS (Mantener producto)
+// ADMINISTRADOR / ALMACENERO — PRODUCTOS (Mantener producto)
 // =============================================
-function renderProductos() {
-  const rows = DB.productos.map(p => {
-    const proveedor = DB.proveedores.find(pr => pr.id === p.proveedor);
-    return `
+async function renderProductos() {
+  try {
+    [DB.productos, DB.proveedores] = await Promise.all([API.getProductos(), API.getProveedores()]);
+  } catch (e) {
+    showToast('Error al cargar productos: ' + e.message, 'error');
+  }
+  const rows = DB.productos.map(p => `
       <tr>
-        <td><strong>${p.id}</strong></td>
-        <td>${p.nombre}</td>
-        <td><span class="badge badge-gray">${p.categoria}</span></td>
+        <td><strong>${esc(p.id)}</strong></td>
+        <td>${esc(p.nombre)}</td>
+        <td><span class="badge badge-gray">${esc(p.categoria)}</span></td>
         <td>S/ ${p.precio.toFixed(2)}</td>
         <td>${p.stock <= p.stockMin ? `<span class="badge badge-error">${p.stock}</span>` : p.stock}</td>
-        <td>${proveedor ? proveedor.nombre : '—'}</td>
+        <td>${esc(p.proveedorNombre || '—')}</td>
         <td>
           <button class="btn btn-sm btn-ghost" onclick="openProductoModal('${p.id}')" title="Editar">${ICONS.edit}</button>
         </td>
-      </tr>`;
-  }).join('');
+      </tr>`).join('');
 
   const content = `
     <div class="page-header">
@@ -786,7 +793,7 @@ function renderProductos() {
       <div class="table-wrapper">
         <table>
           <thead><tr><th>Código</th><th>Nombre</th><th>Categoría</th><th>Precio</th><th>Stock</th><th>Proveedor</th><th></th></tr></thead>
-          <tbody>${rows}</tbody>
+          <tbody>${rows || `<tr><td colspan="7" style="text-align:center;color:var(--gray-400);">No hay productos registrados</td></tr>`}</tbody>
         </table>
       </div>
     </div>
@@ -796,7 +803,8 @@ function renderProductos() {
 
 function openProductoModal(productoId) {
   const editing = productoId ? DB.productos.find(p => p.id === productoId) : null;
-  const proveedorOptions = DB.proveedores.map(p => `<option value="${p.id}" ${editing && editing.proveedor === p.id ? 'selected' : ''}>${p.nombre}</option>`).join('');
+  const proveedorOptions = `<option value="">Selecciona un proveedor...</option>` + DB.proveedores.map(p =>
+    `<option value="${esc(p.id)}" ${editing && editing.proveedor === p.id ? 'selected' : ''}>${esc(p.nombre)}</option>`).join('');
 
   document.getElementById('producto-modal-root').innerHTML = `
     <div class="modal-overlay open">
@@ -810,25 +818,29 @@ function openProductoModal(productoId) {
             <div class="form-grid">
               <div class="form-group span-2">
                 <label>Nombre del producto</label>
-                <input type="text" id="pr-nombre" value="${editing ? editing.nombre : ''}" required>
+                <input type="text" id="pr-nombre" value="${esc(editing ? editing.nombre : '')}" required>
               </div>
               <div class="form-group">
                 <label>Categoría</label>
-                <input type="text" id="pr-categoria" value="${editing ? editing.categoria : ''}" required>
+                <input type="text" id="pr-categoria" value="${esc(editing ? editing.categoria : '')}" required>
               </div>
               <div class="form-group">
-                <label>Precio (S/)</label>
-                <input type="number" step="0.10" min="0" id="pr-precio" value="${editing ? editing.precio : ''}" required>
+                <label>Precio de venta (S/)</label>
+                <input type="number" step="0.01" min="0" id="pr-precio" value="${editing ? editing.precio : ''}" required>
+              </div>
+              <div class="form-group">
+                <label>Costo de compra (S/)</label>
+                <input type="number" step="0.01" min="0" id="pr-costo" value="${editing && editing.costo != null ? editing.costo : ''}" placeholder="Opcional">
               </div>
               <div class="form-group">
                 <label>Stock actual</label>
-                <input type="number" min="0" id="pr-stock" value="${editing ? editing.stock : 0}" required>
+                <input type="number" min="0" step="1" id="pr-stock" value="${editing ? editing.stock : 0}" required>
               </div>
               <div class="form-group">
                 <label>Stock mínimo</label>
-                <input type="number" min="0" id="pr-stockmin" value="${editing ? editing.stockMin : 5}" required>
+                <input type="number" min="0" step="1" id="pr-stockmin" value="${editing ? editing.stockMin : 5}" required>
               </div>
-              <div class="form-group span-2">
+              <div class="form-group">
                 <label>Proveedor</label>
                 <select id="pr-proveedor" required>${proveedorOptions}</select>
               </div>
@@ -847,42 +859,51 @@ function closeProductoModal() {
   document.getElementById('producto-modal-root').innerHTML = '';
 }
 
-function submitProducto(e, productoId) {
+async function submitProducto(e, productoId) {
   e.preventDefault();
+  const costo = document.getElementById('pr-costo').value;
   const data = {
     nombre: document.getElementById('pr-nombre').value.trim(),
     categoria: document.getElementById('pr-categoria').value.trim(),
     precio: parseFloat(document.getElementById('pr-precio').value),
+    costo: costo === '' ? null : parseFloat(costo),
     stock: parseInt(document.getElementById('pr-stock').value, 10),
     stockMin: parseInt(document.getElementById('pr-stockmin').value, 10),
-    proveedor: document.getElementById('pr-proveedor').value,
+    proveedor: document.getElementById('pr-proveedor').value || null,
   };
-
-  if (productoId) {
-    Object.assign(DB.productos.find(p => p.id === productoId), data);
-    showToast('Producto actualizado correctamente', 'success');
-  } else {
-    const nextNum = DB.productos.length + 1;
-    DB.productos.push({ id: 'P' + String(nextNum).padStart(3, '0'), ...data });
-    showToast('Producto registrado correctamente', 'success');
+  try {
+    if (productoId) {
+      await API.updateProducto(productoId, data);
+      showToast('Producto actualizado correctamente', 'success');
+    } else {
+      await API.createProducto(data);
+      showToast('Producto registrado correctamente', 'success');
+    }
+    closeProductoModal();
+    invalidarDatos();
+    await renderProductos();
+  } catch (err) {
+    showToast(err.message, 'error');
   }
-  closeProductoModal();
-  renderProductos();
 }
 
 // =============================================
 // ADMINISTRADOR — PROVEEDORES (Mantener proveedor)
 // =============================================
-function renderProveedores() {
+async function renderProveedores() {
+  try { DB.proveedores = await API.getProveedores(); }
+  catch (e) { showToast('Error al cargar proveedores: ' + e.message, 'error'); }
+
+  const esAdmin = APP.currentUser.rol === 'Administrador';
   const rows = DB.proveedores.map(p => `
     <tr>
-      <td><strong>${p.id}</strong></td>
-      <td>${p.nombre}</td>
-      <td>${p.ruc}</td>
-      <td>${p.contacto}</td>
-      <td>${p.telefono}</td>
-      <td>${p.email}</td>
-      <td><button class="btn btn-sm btn-ghost" onclick="openProveedorModal('${p.id}')">${ICONS.edit}</button></td>
+      <td><strong>${esc(p.id)}</strong></td>
+      <td>${esc(p.nombre)}</td>
+      <td>${esc(p.ruc)}</td>
+      <td>${esc(p.contacto)}</td>
+      <td>${esc(p.telefono)}</td>
+      <td>${esc(p.email)}</td>
+      <td>${esAdmin ? `<button class="btn btn-sm btn-ghost" onclick="openProveedorModal('${p.id}')">${ICONS.edit}</button>` : ''}</td>
     </tr>`).join('');
 
   const content = `
@@ -893,12 +914,12 @@ function renderProveedores() {
     <div class="card">
       <div class="card-header">
         <div class="card-title">Listado de proveedores</div>
-        <button class="btn btn-primary btn-sm" onclick="openProveedorModal()">${ICONS.plus} Nuevo Proveedor</button>
+        ${esAdmin ? `<button class="btn btn-primary btn-sm" onclick="openProveedorModal()">${ICONS.plus} Nuevo Proveedor</button>` : ''}
       </div>
       <div class="table-wrapper">
         <table>
           <thead><tr><th>Código</th><th>Razón Social</th><th>RUC</th><th>Contacto</th><th>Teléfono</th><th>Email</th><th></th></tr></thead>
-          <tbody>${rows}</tbody>
+          <tbody>${rows || `<tr><td colspan="7" style="text-align:center;color:var(--gray-400);">No hay proveedores registrados</td></tr>`}</tbody>
         </table>
       </div>
     </div>
@@ -920,23 +941,23 @@ function openProveedorModal(proveedorId) {
             <div class="form-grid">
               <div class="form-group span-2">
                 <label>Razón Social</label>
-                <input type="text" id="pv-nombre" value="${editing ? editing.nombre : ''}" required>
+                <input type="text" id="pv-nombre" value="${esc(editing ? editing.nombre : '')}" required>
               </div>
               <div class="form-group">
                 <label>RUC</label>
-                <input type="text" id="pv-ruc" maxlength="11" value="${editing ? editing.ruc : ''}" required>
+                <input type="text" id="pv-ruc" maxlength="11" pattern="\\d{11}" title="11 dígitos" value="${esc(editing ? editing.ruc : '')}" required>
               </div>
               <div class="form-group">
                 <label>Persona de contacto</label>
-                <input type="text" id="pv-contacto" value="${editing ? editing.contacto : ''}" required>
+                <input type="text" id="pv-contacto" value="${esc(editing ? editing.contacto : '')}" required>
               </div>
               <div class="form-group">
                 <label>Teléfono</label>
-                <input type="text" id="pv-telefono" value="${editing ? editing.telefono : ''}" required>
+                <input type="text" id="pv-telefono" value="${esc(editing ? editing.telefono : '')}" required>
               </div>
               <div class="form-group">
                 <label>Email</label>
-                <input type="email" id="pv-email" value="${editing ? editing.email : ''}" required>
+                <input type="email" id="pv-email" value="${esc(editing ? editing.email : '')}" required>
               </div>
             </div>
           </div>
@@ -953,31 +974,29 @@ function closeProveedorModal() {
   document.getElementById('proveedor-modal-root').innerHTML = '';
 }
 
-function submitProveedor(e, proveedorId) {
+async function submitProveedor(e, proveedorId) {
   e.preventDefault();
-  const ruc = document.getElementById('pv-ruc').value.trim();
-  const duplicado = DB.proveedores.find(p => p.ruc === ruc && p.id !== proveedorId);
-  if (duplicado) {
-    showToast(`Ya existe un proveedor con RUC ${ruc}`, 'error');
-    return;
-  }
   const data = {
     nombre: document.getElementById('pv-nombre').value.trim(),
-    ruc,
+    ruc: document.getElementById('pv-ruc').value.trim(),
     contacto: document.getElementById('pv-contacto').value.trim(),
     telefono: document.getElementById('pv-telefono').value.trim(),
     email: document.getElementById('pv-email').value.trim(),
   };
-  if (proveedorId) {
-    Object.assign(DB.proveedores.find(p => p.id === proveedorId), data);
-    showToast('Proveedor actualizado correctamente', 'success');
-  } else {
-    const nextNum = DB.proveedores.length + 1;
-    DB.proveedores.push({ id: 'PR' + String(nextNum).padStart(3, '0'), ...data });
-    showToast('Proveedor registrado correctamente', 'success');
+  try {
+    if (proveedorId) {
+      await API.updateProveedor(proveedorId, data);
+      showToast('Proveedor actualizado correctamente', 'success');
+    } else {
+      await API.createProveedor(data);
+      showToast('Proveedor registrado correctamente', 'success');
+    }
+    closeProveedorModal();
+    invalidarDatos();
+    await renderProveedores();
+  } catch (err) {
+    showToast(err.message, 'error');
   }
-  closeProveedorModal();
-  renderProveedores();
 }
 
 // =============================================
@@ -986,18 +1005,27 @@ function submitProveedor(e, proveedorId) {
 let ocCart = [];
 let ocProveedorSeleccionado = null;
 
-function renderOrdenesCompra() {
-  const rows = DB.ordenes.map(o => {
-    const prov = DB.proveedores.find(p => p.id === o.proveedor);
-    return `
+async function renderOrdenesCompra() {
+  try {
+    [DB.ordenes, DB.proveedores, DB.productos] = await Promise.all([
+      API.getOrdenes(), API.getProveedores(), API.getProductos(),
+    ]);
+  } catch (e) {
+    showToast('Error al cargar órdenes: ' + e.message, 'error');
+  }
+
+  const rows = DB.ordenes.map(o => `
       <tr>
-        <td><strong>${o.id}</strong></td>
-        <td>${o.fecha}</td>
-        <td>${prov ? prov.nombre : '—'}</td>
+        <td><strong>${esc(o.id)}</strong></td>
+        <td>${formatearFecha(o.fecha)}</td>
+        <td>${esc(o.proveedorNombre || '—')}</td>
         <td>S/ ${o.total.toFixed(2)}</td>
         <td>${ordenEstadoBadge(o.estado)}</td>
-      </tr>`;
-  }).join('');
+        <td style="white-space:nowrap;">
+          <button class="btn btn-sm btn-ghost" onclick="verOrdenCompra('${o.id}')" title="Ver detalle">${ICONS.eye}</button>
+          ${o.estado === 'Pendiente' ? `<button class="btn btn-sm btn-ghost" onclick="cancelarOrdenCompra('${o.id}')" title="Cancelar orden">${ICONS.x}</button>` : ''}
+        </td>
+      </tr>`).join('');
 
   const content = `
     <div class="page-header">
@@ -1014,18 +1042,59 @@ function renderOrdenesCompra() {
       <div class="card">
         <div class="table-wrapper">
           <table>
-            <thead><tr><th>Código</th><th>Fecha</th><th>Proveedor</th><th>Total</th><th>Estado</th></tr></thead>
-            <tbody>${rows || `<tr><td colspan="5" style="text-align:center;color:var(--gray-400);">Sin órdenes registradas</td></tr>`}</tbody>
+            <thead><tr><th>Código</th><th>Fecha</th><th>Proveedor</th><th>Total</th><th>Estado</th><th></th></tr></thead>
+            <tbody>${rows || `<tr><td colspan="6" style="text-align:center;color:var(--gray-400);">Sin órdenes registradas</td></tr>`}</tbody>
           </table>
         </div>
       </div>
-    </div>`;
+    </div>
+    <div id="oc-modal-root"></div>`;
   renderLayout('Órdenes de Compra', content, 'ordenes-compra');
 }
 
 function ordenEstadoBadge(estado) {
   const map = { Pendiente: 'badge-warning', Recibida: 'badge-success', Cancelada: 'badge-error' };
-  return `<span class="badge ${map[estado] || 'badge-gray'}">${estado}</span>`;
+  return `<span class="badge ${map[estado] || 'badge-gray'}">${esc(estado)}</span>`;
+}
+
+async function verOrdenCompra(id) {
+  const orden = DB.ordenes.find(o => o.id === id);
+  if (!orden) return;
+  try {
+    const det = await API.getDetalleOrden(id);
+    document.getElementById('oc-modal-root').innerHTML = `
+      <div class="modal-overlay open">
+        <div class="modal">
+          <div class="modal-header">
+            <div class="modal-title">Orden ${esc(id)} — ${esc(orden.proveedorNombre || '')}</div>
+            <button class="modal-close" onclick="document.getElementById('oc-modal-root').innerHTML=''">${ICONS.x}</button>
+          </div>
+          <div class="modal-body">
+            <div style="margin-bottom:12px;">${ordenEstadoBadge(orden.estado)} <span style="color:var(--gray-400);font-size:12px;">${formatearFecha(orden.fecha)} · por ${esc(orden.admin || '—')}</span></div>
+            <div class="table-wrapper">
+              <table>
+                <thead><tr><th>Producto</th><th>Cantidad</th><th>Costo Unit.</th><th>Subtotal</th></tr></thead>
+                <tbody>${det.map(d => `<tr><td>${esc(d.nombre)}</td><td>${d.cantidad}</td><td>S/ ${d.costo_unit.toFixed(2)}</td><td>S/ ${d.subtotal.toFixed(2)}</td></tr>`).join('')}</tbody>
+              </table>
+            </div>
+            <div style="text-align:right;font-weight:700;margin-top:12px;">Total: S/ ${orden.total.toFixed(2)}</div>
+          </div>
+        </div>
+      </div>`;
+  } catch (e) {
+    showToast('No se pudo cargar el detalle: ' + e.message, 'error');
+  }
+}
+
+async function cancelarOrdenCompra(id) {
+  if (!confirm(`¿Cancelar la orden ${id}? Esta acción no se puede deshacer.`)) return;
+  try {
+    await API.updateOrdenEstado(id, 'Cancelada');
+    showToast(`Orden ${id} cancelada`, 'success');
+    await renderOrdenesCompra();
+  } catch (e) {
+    showToast(e.message, 'error');
+  }
 }
 
 function switchOcTab(tab, btn) {
@@ -1038,19 +1107,18 @@ function switchOcTab(tab, btn) {
     return;
   }
 
-  // Reset estado de la orden nueva
   ocCart = [];
   ocProveedorSeleccionado = null;
 
   container.innerHTML = `
-    <div style="display:grid; grid-template-columns: 1fr 1fr; gap:18px; align-items:start;">
+              <div id="oc-proveedor-resultados" style="max-height:140px; overflow-y:auto;">${proveedoresListaHTML('')}</div>
       <div class="card">
         <div class="card-header"><div class="card-title">Buscar Proveedor</div></div>
         <div class="card-body">
-          <div class="form-group" style="margin-bottom:14px;">
-            <input type="text" id="oc-buscar-proveedor" placeholder="Buscar por nombre o RUC..." oninput="filtrarProveedoresOC(this.value)">
+          <div class="busqueda-wrap" style="position:relative; margin-bottom:14px;">
+            <input type="text" id="oc-buscar-proveedor" placeholder="Buscar por nombre o RUC..." autocomplete="off" onfocus="mostrarLista('oc-proveedor-resultados')" onclick="mostrarLista('oc-proveedor-resultados')" oninput="filtrarProveedoresOC(this.value)">
+            <div id="oc-proveedor-resultados" class="lista-busqueda" style="display:none;">${proveedoresListaHTML('')}</div>
           </div>
-          <div id="oc-proveedor-resultados" style="max-height:140px; overflow-y:auto;"></div>
           <div id="oc-proveedor-seleccionado">${ocProveedorBoxHTML()}</div>
         </div>
       </div>
@@ -1059,12 +1127,12 @@ function switchOcTab(tab, btn) {
         <div class="card-header"><div class="card-title">Buscar Producto</div></div>
         <div class="card-body">
           <div class="form-group" style="margin-bottom:14px;">
-            <input type="text" id="oc-buscar-producto" placeholder="Buscar producto agotado o por código..." oninput="filtrarProductosOC(this.value)">
+            <input type="text" id="oc-buscar-producto" placeholder="Por defecto: productos con stock bajo. Busca por nombre o código..." oninput="filtrarProductosOC(this.value)">
           </div>
           <div class="table-wrapper">
             <table>
               <thead><tr><th>Producto</th><th>Stock</th><th></th></tr></thead>
-              <tbody id="oc-productos-tbody">${productoRowsOC(DB.productos.filter(p => p.stock <= p.stockMin))}</tbody>
+              <tbody id="oc-productos-tbody">${productoRowsOC(productosOCOrdenados(''))}</tbody>
             </table>
           </div>
         </div>
@@ -1076,7 +1144,7 @@ function switchOcTab(tab, btn) {
       <div class="card-body">
         <div class="table-wrapper">
           <table class="order-items-table">
-            <thead><tr><th>Producto</th><th>Costo Unit.</th><th>Cantidad</th><th>Subtotal</th><th></th></tr></thead>
+            <thead><tr><th>Producto</th><th>Costo Unit. (S/)</th><th>Cantidad</th><th>Subtotal</th><th></th></tr></thead>
             <tbody id="oc-cart-tbody">${ocCartRowsHTML()}</tbody>
           </table>
         </div>
@@ -1084,7 +1152,7 @@ function switchOcTab(tab, btn) {
           <div style="font-size:18px; font-weight:700; color:var(--gray-800);">
             Total: <span style="color:var(--red);">S/ <span id="oc-total">${ocCartTotal().toFixed(2)}</span></span>
           </div>
-          <button class="btn btn-primary btn-lg" onclick="grabarOrdenCompra()">${ICONS.check} Grabar Orden de Compra</button>
+          <button class="btn btn-primary btn-lg" id="oc-grabar" onclick="grabarOrdenCompra()">${ICONS.check} Grabar Orden de Compra</button>
         </div>
       </div>
     </div>`;
@@ -1097,44 +1165,62 @@ function ocProveedorBoxHTML() {
     <div class="alert alert-info" style="align-items:flex-start; margin-top:10px;">
       ${ICONS.truck}
       <div>
-        <strong>${p.nombre}</strong><br>
-        <span style="font-size:12px;">RUC: ${p.ruc} · ${p.contacto}</span>
+        <strong>${esc(p.nombre)}</strong><br>
+        <span style="font-size:12px;">RUC: ${esc(p.ruc)} · ${esc(p.contacto)}</span>
       </div>
     </div>`;
 }
 
+// Sin texto muestra TODOS los proveedores guardados; al escribir filtra por nombre o RUC
+function proveedoresListaHTML(query) {
+  const q = (query || '').toLowerCase().trim();
+  if (!DB.proveedores.length) return `<div class="item-busqueda-vacio">No hay proveedores registrados</div>`;
+  const matches = DB.proveedores
+    .filter(p => !q || p.nombre.toLowerCase().includes(q) || String(p.ruc).includes(q))
+    .sort((a, b) => a.nombre.localeCompare(b.nombre));
+  return matches.length ? matches.map(p => `
+    <div class="item-busqueda" onclick="seleccionarProveedorOC('${p.id}')">
+      <strong>${esc(p.nombre)}</strong>
+      <span>RUC: ${esc(p.ruc)}</span>
+    </div>`).join('') : `<div class="item-busqueda-vacio">Sin coincidencias</div>`;
+}
+
 function filtrarProveedoresOC(query) {
-  const q = query.toLowerCase().trim();
   const box = document.getElementById('oc-proveedor-resultados');
-  if (!q) { box.innerHTML = ''; return; }
-  const matches = DB.proveedores.filter(p => p.nombre.toLowerCase().includes(q) || p.ruc.includes(q));
-  box.innerHTML = matches.length ? matches.map(p => `
-    <div class="nav-item" style="border-radius:6px; margin-bottom:4px;" onclick="seleccionarProveedorOC('${p.id}')">
-      <strong style="font-weight:500;">${p.nombre}</strong>&nbsp;<span style="color:var(--gray-400);font-size:12px;">${p.ruc}</span>
-    </div>`).join('') : `<div style="padding:8px; color:var(--gray-400); font-size:13px;">Sin coincidencias</div>`;
+  if (!box) return;
+  box.innerHTML = proveedoresListaHTML(query);
+  mostrarLista('oc-proveedor-resultados');
 }
 
 function seleccionarProveedorOC(proveedorId) {
   ocProveedorSeleccionado = DB.proveedores.find(p => p.id === proveedorId);
   document.getElementById('oc-proveedor-seleccionado').innerHTML = ocProveedorBoxHTML();
-  document.getElementById('oc-proveedor-resultados').innerHTML = '';
   document.getElementById('oc-buscar-proveedor').value = '';
+  const lista = document.getElementById('oc-proveedor-resultados');
+  lista.innerHTML = proveedoresListaHTML('');
+  lista.style.display = 'none';
 }
 
 function productoRowsOC(list) {
   if (!list.length) return `<tr><td colspan="3" style="text-align:center;color:var(--gray-400);">Sin resultados</td></tr>`;
   return list.map(p => `
     <tr>
-      <td>${p.nombre} ${p.stock <= p.stockMin ? `<span class="badge badge-error" style="margin-left:6px;">Bajo</span>` : ''}</td>
+      <td>${esc(p.nombre)} ${p.stock <= p.stockMin ? `<span class="badge badge-error" style="margin-left:6px;">Bajo</span>` : ''}</td>
       <td>${p.stock}</td>
       <td><button class="btn btn-sm btn-outline" onclick="addToOcCart('${p.id}')">${ICONS.plus}</button></td>
     </tr>`).join('');
 }
 
+// Sin texto muestra TODOS los productos (los de stock bajo primero); al escribir filtra
+function productosOCOrdenados(query) {
+  const q = (query || '').toLowerCase().trim();
+  return DB.productos
+    .filter(p => !q || p.nombre.toLowerCase().includes(q) || p.id.toLowerCase().includes(q))
+    .sort((a, b) => (b.stock <= b.stockMin) - (a.stock <= a.stockMin) || a.nombre.localeCompare(b.nombre));
+}
+
 function filtrarProductosOC(query) {
-  const q = query.toLowerCase().trim();
-  const filtered = DB.productos.filter(p => p.nombre.toLowerCase().includes(q) || p.id.toLowerCase().includes(q));
-  document.getElementById('oc-productos-tbody').innerHTML = productoRowsOC(q ? filtered : DB.productos.filter(p => p.stock <= p.stockMin));
+  document.getElementById('oc-productos-tbody').innerHTML = productoRowsOC(productosOCOrdenados(query));
 }
 
 function addToOcCart(productId) {
@@ -1144,7 +1230,9 @@ function addToOcCart(productId) {
   if (existing) {
     existing.cantidad++;
   } else {
-    ocCart.push({ id: producto.id, nombre: producto.nombre, costo: producto.precio * 0.5, cantidad: 1 });
+    // Costo sugerido: el costo registrado del producto; si no hay, el 50% del precio de venta (editable)
+    const sugerido = producto.costo != null ? producto.costo : Math.round(producto.precio * 50) / 100;
+    ocCart.push({ id: producto.id, nombre: producto.nombre, costo: sugerido, cantidad: 1 });
   }
   refreshOcCart();
 }
@@ -1157,13 +1245,26 @@ function changeOcQty(productId, delta) {
   refreshOcCart();
 }
 
+function changeOcCosto(productId, valor) {
+  const item = ocCart.find(i => i.id === productId);
+  if (!item) return;
+  const v = parseFloat(valor);
+  item.costo = Number.isFinite(v) && v >= 0 ? v : 0;
+  refreshOcCart(true);
+}
+
 function removeFromOcCart(productId) {
   ocCart = ocCart.filter(i => i.id !== productId);
   refreshOcCart();
 }
 
-function refreshOcCart() {
-  document.getElementById('oc-cart-tbody').innerHTML = ocCartRowsHTML();
+// soloTotales=true evita re-dibujar la tabla mientras se escribe en el campo de costo
+function refreshOcCart(soloTotales = false) {
+  if (!soloTotales) document.getElementById('oc-cart-tbody').innerHTML = ocCartRowsHTML();
+  else ocCart.forEach(i => {
+    const c = document.getElementById('oc-sub-' + i.id);
+    if (c) c.textContent = 'S/ ' + (i.costo * i.cantidad).toFixed(2);
+  });
   document.getElementById('oc-total').textContent = ocCartTotal().toFixed(2);
 }
 
@@ -1173,8 +1274,8 @@ function ocCartRowsHTML() {
   }
   return ocCart.map(item => `
     <tr>
-      <td>${item.nombre}</td>
-      <td>S/ ${item.costo.toFixed(2)}</td>
+      <td>${esc(item.nombre)}</td>
+      <td><input type="number" min="0" step="0.01" value="${item.costo}" style="width:90px;" oninput="changeOcCosto('${item.id}', this.value)"></td>
       <td>
         <div class="qty-control">
           <button class="qty-btn" onclick="changeOcQty('${item.id}', -1)">−</button>
@@ -1182,7 +1283,7 @@ function ocCartRowsHTML() {
           <button class="qty-btn" onclick="changeOcQty('${item.id}', 1)">+</button>
         </div>
       </td>
-      <td>S/ ${(item.costo * item.cantidad).toFixed(2)}</td>
+      <td id="oc-sub-${item.id}">S/ ${(item.costo * item.cantidad).toFixed(2)}</td>
       <td><button class="btn btn-sm btn-ghost" onclick="removeFromOcCart('${item.id}')">${ICONS.trash}</button></td>
     </tr>`).join('');
 }
@@ -1191,27 +1292,24 @@ function ocCartTotal() {
   return ocCart.reduce((s, i) => s + i.costo * i.cantidad, 0);
 }
 
-function grabarOrdenCompra() {
-  if (!ocProveedorSeleccionado) {
-    showToast('Selecciona un proveedor para la orden', 'error');
-    return;
+async function grabarOrdenCompra() {
+  if (!ocProveedorSeleccionado) { showToast('Selecciona un proveedor para la orden', 'error'); return; }
+  if (!ocCart.length) { showToast('Agrega al menos un producto a la orden', 'error'); return; }
+
+  const btn = document.getElementById('oc-grabar');
+  btn.disabled = true;
+  try {
+    const orden = await API.createOrden({
+      id_proveedor: ocProveedorSeleccionado.id,
+      items: ocCart.map(i => ({ id_producto: i.id, cantidad: i.cantidad, costo_unit: i.costo })),
+    });
+    invalidarDatos();
+    showToast(`Orden ${orden.id} registrada correctamente`, 'success');
+    await renderOrdenesCompra();
+  } catch (err) {
+    btn.disabled = false;
+    showToast(err.message, 'error');
   }
-  if (!ocCart.length) {
-    showToast('Agrega al menos un producto a la orden', 'error');
-    return;
-  }
-  const nextNum = DB.ordenes.length + 1;
-  const nuevaOrden = {
-    id: 'OC' + String(nextNum).padStart(3, '0'),
-    fecha: new Date().toISOString().slice(0, 10),
-    proveedor: ocProveedorSeleccionado.id,
-    admin: APP.currentUser.username,
-    total: ocCartTotal(),
-    estado: 'Pendiente',
-  };
-  DB.ordenes.push(nuevaOrden);
-  showToast(`Orden ${nuevaOrden.id} registrada correctamente`, 'success');
-  navigateTo('ordenes-compra');
 }
 
 // =============================================
@@ -1271,14 +1369,14 @@ function renderReporteResultados(ventas, fechaIni, fechaFin) {
   });
 
   const completadas = filtradas.filter(v => v.estado === 'Completada');
-  const totalVentas = completadas.reduce((s, v) => s + parseFloat(v.total || 0), 0);
+  const totalVentas = completadas.reduce((s, v) => s + parseFloat(v.total || 0) - (v.monto_devuelto || 0), 0);
   const totalDevueltas = filtradas.filter(v => v.estado === 'Devuelta').length;
 
   // Agrupar ventas por fecha (YYYY-MM-DD) para el gráfico
   const ventasPorFecha = {};
   completadas.forEach(v => {
     const fechaDia = v.fecha.split('T')[0];
-    ventasPorFecha[fechaDia] = (ventasPorFecha[fechaDia] || 0) + parseFloat(v.total || 0);
+    ventasPorFecha[fechaDia] = (ventasPorFecha[fechaDia] || 0) + parseFloat(v.total || 0) - (v.monto_devuelto || 0);
   });
   const fechas  = Object.keys(ventasPorFecha).sort();
   const totales = fechas.map(f => ventasPorFecha[f]);
@@ -1293,15 +1391,13 @@ function renderReporteResultados(ventas, fechaIni, fechaFin) {
     const fechaFormateada = fechaSoloDia ? `${day}/${month}/${year}` : '—';
 
     // B) Obtención robusta del nombre del cliente
-    const idCliente = v.id_cliente || v.cliente;
-    const cliente = DB.clientes.find(c => String(c.id).trim() === String(idCliente).trim());
-    const nombreCliente = cliente ? cliente.nombre : (v.nombre_cliente || 'Cliente General');
+    const nombreCliente = v.nombre_cliente || 'Cliente General';
 
     return '<tr>'
-      + '<td><strong>' + v.id + '</strong></td>'
+      + '<td><strong>' + esc(v.id) + '</strong></td>'
       + '<td>' + fechaFormateada + '</td>'
-      + '<td>' + nombreCliente + '</td>'
-      + '<td>' + (v.cajero || v.username_cajero || '—') + '</td>'
+      + '<td>' + esc(nombreCliente) + '</td>'
+      + '<td>' + esc(v.cajero || '—') + '</td>'
       + '<td>S/ ' + parseFloat(v.total || 0).toFixed(2) + '</td>'
       + '<td>' + estadoVentaBadge(v.estado) + '</td>'
       + '</tr>';
@@ -1323,7 +1419,7 @@ function renderReporteResultados(ventas, fechaIni, fechaFin) {
     ? '<div class="card" style="margin-bottom:18px;">'
       + '<div class="card-header"><div class="card-title">' + ICONS.chart + ' Gráfico de ventas por día</div></div>'
       + '<div class="card-body" style="overflow-x:auto;">'
-      + '<div style="display:flex;align-items:flex-end;gap:6px;height:100px;padding:0 8px;width:20%;max-width:700px;">'
+      + '<div style="display:flex;align-items:flex-end;gap:6px;height:100px;padding:0 8px;min-width:max-content;">'
       + barras
       + '</div></div></div>'
     : '';
@@ -1351,41 +1447,37 @@ function renderReporteResultados(ventas, fechaIni, fechaFin) {
     + '</table></div></div>';
 }
 
+// Escapa una celda CSV (comillas, ; y saltos) y neutraliza fórmulas de Excel (=, +, -, @)
+function csvCelda(v) {
+  let t = String(v ?? '');
+  if (/^[=+\-@]/.test(t)) t = "'" + t;
+  return /[";\n\r]/.test(t) ? '"' + t.replace(/"/g, '""') + '"' : t;
+}
+
+function descargarCSV(nombre, filas) {
+  const csv = '\uFEFF' + filas.map(f => f.map(csvCelda).join(';')).join('\n'); // ; y BOM para Excel en español
+  const url = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8;' }));
+  const a = document.createElement('a');
+  a.href = url; a.download = nombre; a.click();
+  URL.revokeObjectURL(url);
+}
+
 function exportarReporteCSV() {
   const fechaIni = document.getElementById('rpt-fecha-ini')?.value || '';
   const fechaFin = document.getElementById('rpt-fecha-fin')?.value || '';
-  const filtradas = DB.ventas.filter(v => !fechaIni || (v.fecha >= fechaIni && v.fecha <= fechaFin));
+  const filtradas = DB.ventas.filter(v => v.fecha && (!fechaIni || v.fecha >= fechaIni) && (!fechaFin || v.fecha <= fechaFin));
 
   if (!filtradas.length) {
     showToast('No hay ventas para exportar en este período', 'error');
     return;
   }
-
-  const header = 'Codigo,Fecha,Cliente,Cajero,Total,Estado';
-  const filas = filtradas.map(v => {
-    const cliente = DB.clientes.find(c => c.id === (v.cliente || v.id_cliente));
-    return [
-      v.id,
-      v.fecha,
-      (cliente ? cliente.nombre : (v.id_cliente || v.cliente ? 'ID:' + (v.id_cliente || v.cliente) : 'Sin cliente')),
-      v.cajero || v.username_cajero || 'N/A',
-      parseFloat(v.total || 0).toFixed(2),
-      v.estado
-    ].join(',');
-  });
-
-  // Usar punto y coma: Excel en español lo separa en columnas automáticamente
-  const sep = ';';
-  const headerSep = header.replace(/,/g, sep);
-  const filasSep  = filas.map(f => f.replace(/,/g, sep));
-  const csv = '\uFEFF' + [headerSep, ...filasSep].join('\n'); // BOM para Excel
-  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-  const url  = URL.createObjectURL(blob);
-  const a    = document.createElement('a');
-  a.href     = url;
-  a.download = 'reporte_ventas_' + (fechaIni || 'todos') + '_' + (fechaFin || '') + '.csv';
-  a.click();
-  URL.revokeObjectURL(url);
+  descargarCSV(`reporte_ventas_${fechaIni || 'todos'}_${fechaFin}.csv`, [
+    ['Codigo', 'Boleta', 'Fecha', 'Cliente', 'Cajero', 'Total', 'Devuelto', 'Estado'],
+    ...filtradas.map(v => [
+      v.id, v.comprobante || '', v.fecha, v.nombre_cliente || 'Sin cliente', v.cajero || 'N/A',
+      parseFloat(v.total || 0).toFixed(2), (v.monto_devuelto || 0).toFixed(2), v.estado,
+    ]),
+  ]);
   showToast('Reporte exportado como CSV', 'success');
 }
 
@@ -1410,9 +1502,12 @@ async function renderUsuarios() {
 
   const rows = DB.users.map(u => `
     <tr>
-      <td><strong>${u.username}</strong></td>
-      <td>${u.nombre} ${u.apellido_paterno || ''} ${u.apellido_materno || ''}</td>
-      <td><span class="badge badge-info">${u.rol}</span></td>
+      <td><strong>${esc(u.username)}</strong></td>
+      <td>${esc(u.nombre)} ${esc(u.apellido_paterno || '')} ${esc(u.apellido_materno || '')}</td>
+      <td><span class="badge badge-info">${esc(u.rol)}</span></td>
+      <td>${!u.activo ? '<span class="badge badge-gray">Inactivo</span>'
+          : u.bloqueado ? '<span class="badge badge-error">Bloqueado</span>'
+          : '<span class="badge badge-success">Activo</span>'}</td>
       <td><button class="btn btn-sm btn-ghost" onclick="openUsuarioModal(${u.id})">${ICONS.edit}</button></td>
     </tr>`).join('');
 
@@ -1428,8 +1523,8 @@ async function renderUsuarios() {
       </div>
       <div class="table-wrapper">
         <table>
-          <thead><tr><th>Usuario</th><th>Nombre Completo</th><th>Rol</th><th></th></tr></thead>
-          <tbody>${rows || '<tr><td colspan="4" style="text-align:center;color:var(--gray-400);">No hay usuarios registrados</td></tr>'}</tbody>
+          <thead><tr><th>Usuario</th><th>Nombre Completo</th><th>Rol</th><th>Estado</th><th></th></tr></thead>
+          <tbody>${rows || '<tr><td colspan="5" style="text-align:center;color:var(--gray-400);">No hay usuarios registrados</td></tr>'}</tbody>
         </table>
       </div>
     </div>
@@ -1440,6 +1535,7 @@ async function renderUsuarios() {
 
 function openUsuarioModal(userId) {
   const editing = userId ? DB.users.find(u => u.id === userId) : null;
+  const esYo = editing && String(editing.id) === String(APP.currentUser.id);
   document.getElementById('usuario-modal-root').innerHTML = `
     <div class="modal-overlay open">
       <div class="modal">
@@ -1452,19 +1548,19 @@ function openUsuarioModal(userId) {
             <div class="form-grid">
               <div class="form-group span-2">
                 <label>Nombre</label>
-                <input type="text" id="us-nombre" value="${editing ? editing.nombre : ''}" required>
+                <input type="text" id="us-nombre" value="${esc(editing ? editing.nombre : '')}" required>
               </div>
               <div class="form-group">
                 <label>Apellido Paterno</label>
-                <input type="text" id="us-apellido-paterno" value="${editing ? (editing.apellido_paterno || '') : ''}" required>
+                <input type="text" id="us-apellido-paterno" value="${esc(editing ? (editing.apellido_paterno || '') : '')}" required>
               </div>
               <div class="form-group">
                 <label>Apellido Materno</label>
-                <input type="text" id="us-apellido-materno" value="${editing ? (editing.apellido_materno || '') : ''}">
+                <input type="text" id="us-apellido-materno" value="${esc(editing ? (editing.apellido_materno || '') : '')}">
               </div>
               <div class="form-group">
                 <label>Usuario</label>
-                <input type="text" id="us-username" value="${editing ? editing.username : ''}" required>
+                <input type="text" id="us-username" value="${esc(editing ? editing.username : '')}" required>
               </div>
               <div class="form-group">
                 <label>Contraseña ${editing ? '(dejar vacía para mantener)' : ''}</label>
@@ -1476,6 +1572,13 @@ function openUsuarioModal(userId) {
                   ${['Cajero', 'Administrador', 'Almacenero'].map(r => `<option value="${r}" ${editing && editing.rol === r ? 'selected' : ''}>${r}</option>`).join('')}
                 </select>
               </div>
+              ${editing ? `
+              <div class="form-group">
+                <label><input type="checkbox" id="us-activo" ${editing.activo ? 'checked' : ''} ${esYo ? 'disabled' : ''}> Cuenta activa</label>
+              </div>
+              <div class="form-group">
+                <label><input type="checkbox" id="us-bloqueado" ${editing.bloqueado ? 'checked' : ''} ${esYo ? 'disabled' : ''}> Cuenta bloqueada (desmarcar = desbloquear)</label>
+              </div>` : ''}
             </div>
           </div>
           <div class="modal-footer">
@@ -1507,6 +1610,12 @@ async function submitUsuario(e, userId) {
   if (password) {
     data.password = password;
   }
+  if (userId) {
+    const act = document.getElementById('us-activo');
+    const blq = document.getElementById('us-bloqueado');
+    if (act && !act.disabled) data.activo = act.checked;
+    if (blq && !blq.disabled) data.bloqueado = blq.checked;
+  }
 
   try {
     if (userId) {
@@ -1529,10 +1638,27 @@ async function submitUsuario(e, userId) {
 let entradaCart = [];
 let entradaOrdenSeleccionada = null;
 
-function renderRegistrarEntrada() {
+async function renderRegistrarEntrada() {
   entradaCart = [];
   entradaOrdenSeleccionada = null;
+  try {
+    [DB.ordenes, DB.proveedores, DB.productos, DB.entradas] = await Promise.all([
+      API.getOrdenes(), API.getProveedores(), API.getProductos(), API.getEntradas(),
+    ]);
+  } catch (e) {
+    showToast('Error al cargar órdenes: ' + e.message, 'error');
+  }
   const ordenesPendientes = DB.ordenes.filter(o => o.estado === 'Pendiente');
+
+  const historial = DB.entradas.map(en => `
+    <tr>
+      <td><strong>${esc(en.id)}</strong></td>
+      <td>${formatearFecha(en.fecha)}</td>
+      <td>${esc(en.orden)}</td>
+      <td>${esc(en.proveedorNombre || '—')}</td>
+      <td>${en.productos}</td>
+      <td>${esc(en.almacenero || '—')}</td>
+    </tr>`).join('');
 
   const content = `
     <div class="page-header">
@@ -1541,7 +1667,7 @@ function renderRegistrarEntrada() {
     </div>
 
     <div class="card">
-      <div class="card-header"><div class="card-title">Seleccionar Orden de Compra</div></div>
+      <div class="card-header"><div class="card-title">Seleccionar Orden de Compra pendiente</div></div>
       <div class="card-body">
         <div class="table-wrapper">
           <table>
@@ -1552,81 +1678,68 @@ function renderRegistrarEntrada() {
       </div>
     </div>
 
-    <div id="entrada-detalle-root"></div>`;
+    <div id="entrada-detalle-root"></div>
+
+    <div class="card" style="margin-top:18px;">
+      <div class="card-header"><div class="card-title">Entradas registradas</div></div>
+      <div class="table-wrapper">
+        <table>
+          <thead><tr><th>Código</th><th>Fecha</th><th>Orden</th><th>Proveedor</th><th>Productos</th><th>Registrado por</th></tr></thead>
+          <tbody>${historial || `<tr><td colspan="6" style="text-align:center;color:var(--gray-400);">Aún no hay entradas</td></tr>`}</tbody>
+        </table>
+      </div>
+    </div>`;
   renderLayout('Registrar Entrada', content, 'registrar-entrada');
 }
 
 function entradaOrdenRows(list) {
   if (!list.length) return `<tr><td colspan="5" style="text-align:center;color:var(--gray-400);">No hay órdenes pendientes por recibir</td></tr>`;
-  return list.map(o => {
-    const prov = DB.proveedores.find(p => p.id === o.proveedor);
-    return `
+  return list.map(o => `
       <tr>
-        <td><strong>${o.id}</strong></td>
-        <td>${o.fecha}</td>
-        <td>${prov ? prov.nombre : '—'}</td>
+        <td><strong>${esc(o.id)}</strong></td>
+        <td>${formatearFecha(o.fecha)}</td>
+        <td>${esc(o.proveedorNombre || '—')}</td>
         <td>S/ ${o.total.toFixed(2)}</td>
         <td><button class="btn btn-sm btn-outline" onclick="seleccionarOrdenEntrada('${o.id}')">${ICONS.box} Recibir</button></td>
-      </tr>`;
-  }).join('');
+      </tr>`).join('');
 }
 
-function seleccionarOrdenEntrada(ordenId) {
+// Los productos a recibir salen del detalle REAL de la orden de compra
+async function seleccionarOrdenEntrada(ordenId) {
   entradaOrdenSeleccionada = DB.ordenes.find(o => o.id === ordenId);
-  entradaCart = DB.productos
-    .filter(p => p.proveedor === entradaOrdenSeleccionada.proveedor)
-    .slice(0, 3)
-    .map(p => ({ id: p.id, nombre: p.nombre, cantidad: 1 }));
+  try {
+    const det = await API.getDetalleOrden(ordenId);
+    entradaCart = det.map(d => ({ id: d.id_producto, nombre: d.nombre, pedida: d.cantidad, cantidad: d.cantidad }));
+  } catch (e) {
+    showToast('No se pudo cargar el detalle de la orden: ' + e.message, 'error');
+    return;
+  }
 
   document.getElementById('entrada-detalle-root').innerHTML = `
     <div class="card" style="margin-top:18px;">
       <div class="card-header">
-        <div class="card-title">Detalle de entrada — Orden ${entradaOrdenSeleccionada.id}</div>
+        <div class="card-title">Detalle de entrada — Orden ${esc(entradaOrdenSeleccionada.id)}</div>
       </div>
       <div class="card-body">
-        <div class="form-group" style="max-width:400px; margin-bottom:14px;">
-          <label>Buscar producto para agregar</label>
-          <input type="text" id="entrada-buscar-producto" placeholder="Buscar por nombre o código..." oninput="filtrarProductosEntrada(this.value)">
-        </div>
-        <div id="entrada-productos-resultados" style="margin-bottom:14px;"></div>
+        <p style="color:var(--gray-400);font-size:13px;margin-bottom:12px;">Ajusta la cantidad realmente recibida de cada producto. Quita los que no llegaron.</p>
         <div class="table-wrapper">
           <table class="order-items-table">
-            <thead><tr><th>Producto</th><th>Cantidad recibida</th><th></th></tr></thead>
+            <thead><tr><th>Producto</th><th>Pedido</th><th>Cantidad recibida</th><th></th></tr></thead>
             <tbody id="entrada-cart-tbody">${entradaCartRowsHTML()}</tbody>
           </table>
         </div>
         <div class="form-actions" style="justify-content:flex-end; margin-top:18px;">
-          <button class="btn btn-primary btn-lg" onclick="confirmarEntrada()">${ICONS.check} Confirmar Entrada</button>
+          <button class="btn btn-primary btn-lg" id="entrada-confirmar" onclick="confirmarEntrada()">${ICONS.check} Confirmar Entrada</button>
         </div>
       </div>
     </div>`;
-}
-
-function filtrarProductosEntrada(query) {
-  const q = query.toLowerCase().trim();
-  const box = document.getElementById('entrada-productos-resultados');
-  if (!q) { box.innerHTML = ''; return; }
-  const matches = DB.productos.filter(p => p.nombre.toLowerCase().includes(q) || p.id.toLowerCase().includes(q));
-  box.innerHTML = matches.length ? matches.map(p => `
-    <div class="nav-item" style="border-radius:6px; margin-bottom:4px;" onclick="addToEntradaCart('${p.id}')">
-      <strong style="font-weight:500;">${p.nombre}</strong>&nbsp;<span style="color:var(--gray-400);font-size:12px;">${p.id}</span>
-    </div>`).join('') : `<div style="padding:8px; color:var(--gray-400); font-size:13px;">Sin coincidencias</div>`;
-}
-
-function addToEntradaCart(productId) {
-  const producto = DB.productos.find(p => p.id === productId);
-  if (!producto) return;
-  const existing = entradaCart.find(i => i.id === productId);
-  if (existing) existing.cantidad++;
-  else entradaCart.push({ id: producto.id, nombre: producto.nombre, cantidad: 1 });
-  document.getElementById('entrada-cart-tbody').innerHTML = entradaCartRowsHTML();
+  document.getElementById('entrada-detalle-root').scrollIntoView({ behavior: 'smooth' });
 }
 
 function changeEntradaQty(productId, delta) {
   const item = entradaCart.find(i => i.id === productId);
   if (!item) return;
-  item.cantidad += delta;
-  if (item.cantidad <= 0) entradaCart = entradaCart.filter(i => i.id !== productId);
+  item.cantidad = Math.max(1, Math.min(item.pedida, item.cantidad + delta));
   document.getElementById('entrada-cart-tbody').innerHTML = entradaCartRowsHTML();
 }
 
@@ -1637,11 +1750,12 @@ function removeFromEntradaCart(productId) {
 
 function entradaCartRowsHTML() {
   if (!entradaCart.length) {
-    return `<tr><td colspan="3" style="text-align:center;color:var(--gray-400); padding:24px;">Agrega productos recibidos</td></tr>`;
+    return `<tr><td colspan="4" style="text-align:center;color:var(--gray-400); padding:24px;">No hay productos por recibir</td></tr>`;
   }
   return entradaCart.map(item => `
     <tr>
-      <td>${item.nombre}</td>
+      <td>${esc(item.nombre)}</td>
+      <td>${item.pedida}</td>
       <td>
         <div class="qty-control">
           <button class="qty-btn" onclick="changeEntradaQty('${item.id}', -1)">−</button>
@@ -1653,28 +1767,22 @@ function entradaCartRowsHTML() {
     </tr>`).join('');
 }
 
-function confirmarEntrada() {
-  if (!entradaCart.length) {
-    showToast('Agrega al menos un producto recibido', 'error');
-    return;
+async function confirmarEntrada() {
+  if (!entradaCart.length) { showToast('Agrega al menos un producto recibido', 'error'); return; }
+  const btn = document.getElementById('entrada-confirmar');
+  btn.disabled = true;
+  try {
+    await API.createEntrada({
+      id_orden: entradaOrdenSeleccionada.id,
+      items: entradaCart.map(i => ({ id_producto: i.id, cantidad: i.cantidad })),
+    });
+    invalidarDatos();
+    showToast(`Entrada registrada para la orden ${entradaOrdenSeleccionada.id}. Stock actualizado.`, 'success');
+    await renderRegistrarEntrada();
+  } catch (err) {
+    btn.disabled = false;
+    showToast(err.message, 'error');
   }
-  entradaCart.forEach(item => {
-    const p = DB.productos.find(p => p.id === item.id);
-    if (p) p.stock += item.cantidad;
-  });
-  entradaOrdenSeleccionada.estado = 'Recibida';
-
-  const nextNum = DB.entradas.length + 1;
-  DB.entradas.push({
-    id: 'E' + String(nextNum).padStart(3, '0'),
-    fecha: new Date().toISOString().slice(0, 10),
-    orden: entradaOrdenSeleccionada.id,
-    almacenero: APP.currentUser.username,
-    productos: entradaCart.length,
-  });
-
-  showToast(`Entrada registrada para la orden ${entradaOrdenSeleccionada.id}`, 'success');
-  navigateTo('dashboard');
 }
 
 // =============================================
@@ -1683,15 +1791,14 @@ function confirmarEntrada() {
 function renderProductosAgotados() {
   const agotados = DB.productos.filter(p => p.stock <= p.stockMin);
   const rows = agotados.map(p => {
-    const prov = DB.proveedores.find(pr => pr.id === p.proveedor);
     return `
       <tr>
-        <td><strong>${p.id}</strong></td>
-        <td>${p.nombre}</td>
-        <td>${p.categoria}</td>
+        <td><strong>${esc(p.id)}</strong></td>
+        <td>${esc(p.nombre)}</td>
+        <td>${esc(p.categoria)}</td>
         <td><span class="badge ${p.stock === 0 ? 'badge-error' : 'badge-warning'}">${p.stock}</span></td>
         <td>${p.stockMin}</td>
-        <td>${prov ? prov.nombre : '—'}</td>
+        <td>${esc(p.proveedorNombre || '—')}</td>
       </tr>`;
   }).join('');
 
@@ -1721,9 +1828,9 @@ function renderReporteInventario() {
   const valorTotal = DB.productos.reduce((s, p) => s + p.precio * p.stock, 0);
   const rows = DB.productos.map(p => `
     <tr>
-      <td><strong>${p.id}</strong></td>
-      <td>${p.nombre}</td>
-      <td>${p.categoria}</td>
+      <td><strong>${esc(p.id)}</strong></td>
+      <td>${esc(p.nombre)}</td>
+      <td>${esc(p.categoria)}</td>
       <td>${p.stock}</td>
       <td>S/ ${p.precio.toFixed(2)}</td>
       <td>S/ ${(p.precio * p.stock).toFixed(2)}</td>
@@ -1754,7 +1861,7 @@ function renderReporteInventario() {
     <div class="card">
       <div class="card-header">
         <div class="card-title">Valorización por producto</div>
-        <button class="btn btn-sm btn-outline" onclick="exportarReporteCSV()">${ICONS.download} Exportar CSV</button>
+        <button class="btn btn-sm btn-outline" onclick="exportarInventarioCSV()">${ICONS.download} Exportar CSV</button>
       </div>
       <div class="table-wrapper">
         <table>
@@ -1765,3 +1872,40 @@ function renderReporteInventario() {
     </div>`;
   renderLayout('Reporte de Inventario', content, 'reporte-inventario');
 }
+
+function exportarInventarioCSV() {
+  if (!DB.productos.length) { showToast('No hay productos para exportar', 'error'); return; }
+  descargarCSV('reporte_inventario.csv', [
+    ['Codigo', 'Producto', 'Categoria', 'Stock', 'Stock minimo', 'Precio', 'Valor total'],
+    ...DB.productos.map(p => [p.id, p.nombre, p.categoria, p.stock, p.stockMin, p.precio.toFixed(2), (p.precio * p.stock).toFixed(2)]),
+  ]);
+  showToast('Inventario exportado como CSV', 'success');
+}
+
+// ── Listas desplegables de búsqueda (clientes y proveedores) ──
+(function () {
+  const st = document.createElement('style');
+  st.textContent = `
+    .lista-busqueda { position:absolute; top:100%; left:0; right:0; z-index:50; margin-top:4px; max-height:240px;
+      overflow-y:auto; background:var(--white); border:1px solid var(--gray-200); border-radius:8px;
+      box-shadow:0 8px 24px rgba(0,0,0,.12); }
+    .item-busqueda { padding:10px 14px; cursor:pointer; border-bottom:1px solid var(--gray-100); }
+    .item-busqueda:last-child { border-bottom:none; }
+    .item-busqueda:hover { background:var(--gray-50); }
+    .item-busqueda strong { display:block; font-weight:600; color:var(--gray-800); font-size:14px; }
+    .item-busqueda span { display:block; font-size:12px; color:var(--gray-600); margin-top:2px; }
+    .item-busqueda-vacio { padding:12px 14px; color:var(--gray-400); font-size:13px; }`;
+  document.head.appendChild(st);
+})();
+
+// Muestra la lista indicada (y oculta las demás)
+function mostrarLista(id) {
+  document.querySelectorAll('.lista-busqueda').forEach(l => { l.style.display = (l.id === id) ? 'block' : 'none'; });
+}
+
+// Al hacer clic fuera de la barra de búsqueda, la lista se cierra
+document.addEventListener('click', (e) => {
+  if (!e.target.closest || !e.target.closest('.busqueda-wrap')) {
+    document.querySelectorAll('.lista-busqueda').forEach(l => { l.style.display = 'none'; });
+  }
+});

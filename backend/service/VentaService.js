@@ -1,60 +1,67 @@
 const supabase = require('../config/supabase');
+const { AppError } = require('../errors');
+const { fail } = require('../utils/db');
+const M = require('../mappers');
 
 const VentaService = {
   async listar() {
-    const { data, error } = await supabase
-      .from('v_reporte_ventas').select('*');
-    if (error) throw error;
+    const { data, error } = await supabase.from('v_reporte_ventas').select('*');
+    if (error) fail(error);
+    return data.map(M.venta);
+  },
+
+  // Todo ocurre dentro de la función SQL registrar_venta (una transacción):
+  // valida stock, toma el precio de la BD, genera boleta, descuenta stock y suma puntos.
+  async registrar({ id_cliente, username_cajero, items }) {
+    if (!Array.isArray(items) || !items.length) throw new AppError('La venta debe tener al menos un producto');
+    for (const i of items) {
+      if (!i.id_producto || !Number.isInteger(i.cantidad) || i.cantidad <= 0) {
+        throw new AppError('Cada producto debe tener un código y una cantidad entera mayor a 0');
+      }
+    }
+    const { data, error } = await supabase.rpc('registrar_venta', {
+      p_cliente_id: id_cliente || null,
+      p_cajero_username: username_cajero,
+      p_detalles: items.map(i => ({ id_producto: i.id_producto, cantidad: i.cantidad })),
+    });
+    if (error) fail(error);
     return data;
   },
 
-  async registrar({ id_cliente, username_cajero, items }) {
-    if (!items || items.length === 0)
-      throw new Error('La venta debe tener al menos un producto');
-
-    const total = items.reduce((s, i) => s + i.cantidad * i.precio_unit, 0);
-
-    const { data: ventaGenerada, error: rpcError } = await supabase.rpc('registrar_venta', {
-      p_cliente_id: id_cliente || null,
-      p_cajero_username: username_cajero,
-      p_detalles: items
-    });
-
-    if (rpcError) throw new Error(`Error en el motor de BD: ${rpcError.message}`);
-
-    for (const item of items) {
-      const { data: p } = await supabase
-        .from('producto').select('stock').eq('id', item.id_producto).single();
-      if (p) {
-        await supabase.from('producto')
-          .update({ stock: p.stock - item.cantidad })
-          .eq('id', item.id_producto);
-      }
-    }
-
-    if (id_cliente) {
-      const { data: c } = await supabase
-        .from('cliente').select('puntos').eq('id', id_cliente).single();
-      if (c) {
-        await supabase.from('cliente')
-          .update({ puntos: c.puntos + Math.floor(total / 10) })
-          .eq('id', id_cliente);
-      }
-    }
-
-    return { 
-      id: ventaGenerada.id,
-      comprobante: ventaGenerada.comprobante,
-      estado_almacen: ventaGenerada.estado_almacen,
-      total: total, 
-      estado: 'Completada' 
-    };
+  async detalle(id) {
+    const { data, error } = await supabase
+      .from('detalle_venta')
+      .select('id_producto, cantidad, cantidad_devuelta, precio_unit, subtotal, producto(nombre)')
+      .eq('id_venta', id)
+      .order('id');
+    if (error) fail(error);
+    return data.map(d => ({
+      id_producto: d.id_producto,
+      nombre: d.producto ? d.producto.nombre : d.id_producto,
+      cantidad: M.n(d.cantidad),
+      cantidad_devuelta: M.n(d.cantidad_devuelta) || 0,
+      precio_unit: M.n(d.precio_unit),
+      subtotal: M.n(d.subtotal),
+    }));
   },
 
-  async registrarDevolucion(id) {
-    const { data, error } = await supabase
-      .from('venta').update({ estado: 'Devuelta' }).eq('id', id).select().single();
-    if (error) throw error;
+  async registrarDevolucion(id, username, { motivo, items } = {}) {
+    if (!motivo || !String(motivo).trim()) throw new AppError('El motivo de la devolución es obligatorio');
+    if (items !== undefined && items !== null) {
+      if (!Array.isArray(items) || !items.length) throw new AppError('Seleccione al menos un producto a devolver');
+      for (const i of items) {
+        if (!i.id_producto || !Number.isInteger(i.cantidad) || i.cantidad < 0) {
+          throw new AppError('Cantidad de devolución inválida');
+        }
+      }
+    }
+    const { data, error } = await supabase.rpc('registrar_devolucion', {
+      p_venta_id: id,
+      p_username: username,
+      p_motivo: String(motivo).trim(),
+      p_items: items || null,
+    });
+    if (error) fail(error);
     return data;
   },
 };

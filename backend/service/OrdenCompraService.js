@@ -1,59 +1,68 @@
-// backend/service/OrdenCompraService.js
 const supabase = require('../config/supabase');
+const { AppError } = require('../errors');
+const { fail } = require('../utils/db');
+const M = require('../mappers');
 
 const OrdenCompraService = {
   async listar() {
     const { data, error } = await supabase
       .from('orden_compra')
-      .select('*, proveedor(nombre)')
+      .select('*, proveedor:id_proveedor(nombre)')
       .order('fecha', { ascending: false });
-    if (error) throw error;
-    return data;
+    if (error) fail(error);
+    return data.map(M.orden);
   },
 
-  async grabar({ id_proveedor, username_admin, items }) {
-    if (!id_proveedor) throw new Error('Debes seleccionar un proveedor');
-    if (!items || items.length === 0) throw new Error('La orden debe tener al menos un producto');
-
-    // Generar ID (paso 19: Generar nro orden)
-    const { data: last } = await supabase
-      .from('orden_compra').select('id').order('id', { ascending: false }).limit(1);
-    const nextNum = last && last.length > 0
-      ? parseInt(last[0].id.replace('OC', ''), 10) + 1 : 1;
-    const id = 'OC' + String(nextNum).padStart(3, '0');
-
-    const total = items.reduce((s, i) => s + i.cantidad * i.costo_unit, 0);
-
-    // Grabar cabecera (paso 21)
-    const { error: e1 } = await supabase.from('orden_compra').insert([{
-      id,
-      fecha: new Date().toISOString().slice(0, 10),
-      id_proveedor,
-      username_admin,
-      total: parseFloat(total.toFixed(2)),
-      estado: 'Pendiente',
-    }]);
-    if (e1) throw e1;
-
-    // Grabar detalle (paso 22)
-    const detalles = items.map(i => ({
-      id_orden: id,
-      id_producto: i.id_producto,
-      cantidad: i.cantidad,
-      costo_unit: i.costo_unit,
-      subtotal: parseFloat((i.cantidad * i.costo_unit).toFixed(2)),
-    }));
-    const { error: e2 } = await supabase.from('detalle_orden_compra').insert(detalles);
-    if (e2) throw e2;
-
-    return { id, total, estado: 'Pendiente' };
-  },
-
-  async actualizarEstado(id, estado) {
+  async detalle(id) {
     const { data, error } = await supabase
-      .from('orden_compra').update({ estado }).eq('id', id).select().single();
-    if (error) throw error;
+      .from('detalle_orden_compra')
+      .select('id_producto, cantidad, costo_unit, subtotal, producto(nombre)')
+      .eq('id_orden', id)
+      .order('id');
+    if (error) fail(error);
+    return data.map(d => ({
+      id_producto: d.id_producto,
+      nombre: d.producto ? d.producto.nombre : d.id_producto,
+      cantidad: M.n(d.cantidad),
+      costo_unit: M.n(d.costo_unit),
+      subtotal: M.n(d.subtotal),
+    }));
+  },
+
+  async grabar({ id_proveedor, items }, username) {
+    if (!id_proveedor) throw new AppError('Debes seleccionar un proveedor');
+    if (!Array.isArray(items) || !items.length) throw new AppError('La orden debe tener al menos un producto');
+    for (const i of items) {
+      if (!i.id_producto || !Number.isInteger(i.cantidad) || i.cantidad <= 0) {
+        throw new AppError('Cada producto debe tener una cantidad entera mayor a 0');
+      }
+      if (!Number.isFinite(Number(i.costo_unit)) || Number(i.costo_unit) < 0) {
+        throw new AppError('Cada producto debe tener un costo unitario válido');
+      }
+    }
+    const { data, error } = await supabase.rpc('crear_orden_compra', {
+      p_proveedor_id: id_proveedor,
+      p_username: username,
+      p_items: items.map(i => ({ id_producto: i.id_producto, cantidad: i.cantidad, costo_unit: Number(i.costo_unit) })),
+    });
+    if (error) fail(error);
     return data;
+  },
+
+  // Recibir se hace desde Entradas; aquí solo se puede cancelar una orden pendiente.
+  async actualizarEstado(id, estado) {
+    if (estado !== 'Cancelada') {
+      throw new AppError('Solo se puede cancelar una orden. La recepción se registra desde Entradas de almacén');
+    }
+    const { data, error } = await supabase
+      .from('orden_compra')
+      .update({ estado: 'Cancelada' })
+      .eq('id', id).eq('estado', 'Pendiente')
+      .select('*, proveedor:id_proveedor(nombre)')
+      .maybeSingle();
+    if (error) fail(error);
+    if (!data) throw new AppError('Solo se pueden cancelar órdenes que estén Pendientes', 409);
+    return M.orden(data);
   },
 };
 

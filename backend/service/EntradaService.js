@@ -1,53 +1,33 @@
-// backend/service/EntradaService.js
 const supabase = require('../config/supabase');
+const { AppError } = require('../errors');
+const { fail } = require('../utils/db');
+const M = require('../mappers');
 
 const EntradaService = {
   async listar() {
     const { data, error } = await supabase
       .from('entrada_inventario')
-      .select('*, orden_compra(id, proveedor(nombre))')
+      .select('*, orden_compra(id, proveedor:id_proveedor(nombre))')
       .order('fecha', { ascending: false });
-    if (error) throw error;
-    return data;
+    if (error) fail(error);
+    return data.map(M.entrada);
   },
 
-  async registrar({ id_orden, username_almacenero, items }) {
-    if (!id_orden) throw new Error('Debes seleccionar una orden de compra');
-    if (!items || items.length === 0) throw new Error('Debes registrar al menos un producto');
-
-    // Generar ID
-    const { data: last } = await supabase
-      .from('entrada_inventario').select('id').order('id', { ascending: false }).limit(1);
-    const nextNum = last && last.length > 0
-      ? parseInt(last[0].id.replace('E', ''), 10) + 1 : 1;
-    const id = 'E' + String(nextNum).padStart(3, '0');
-
-    // Grabar entrada
-    const { error: e1 } = await supabase.from('entrada_inventario').insert([{
-      id,
-      fecha: new Date().toISOString().slice(0, 10),
-      id_orden,
-      username_almacenero,
-      cantidad_productos: items.length,
-    }]);
-    if (e1) throw e1;
-
-    // Incrementar stock de cada producto recibido
-    for (const item of items) {
-      const { data: p } = await supabase
-        .from('producto').select('stock').eq('id', item.id_producto).single();
-      if (p) {
-        await supabase.from('producto')
-          .update({ stock: p.stock + item.cantidad })
-          .eq('id', item.id_producto);
+  async registrar({ id_orden, items }, username) {
+    if (!id_orden) throw new AppError('Debes seleccionar una orden de compra');
+    if (!Array.isArray(items) || !items.length) throw new AppError('Debes registrar al menos un producto');
+    for (const i of items) {
+      if (!i.id_producto || !Number.isInteger(i.cantidad) || i.cantidad <= 0) {
+        throw new AppError('Cada producto debe tener una cantidad entera mayor a 0');
       }
     }
-
-    // Marcar la orden como Recibida
-    await supabase.from('orden_compra')
-      .update({ estado: 'Recibida' }).eq('id', id_orden);
-
-    return { id, estado: 'ok' };
+    const { data, error } = await supabase.rpc('registrar_entrada', {
+      p_orden_id: id_orden,
+      p_username: username,
+      p_items: items.map(i => ({ id_producto: i.id_producto, cantidad: i.cantidad })),
+    });
+    if (error) fail(error);
+    return data;
   },
 };
 

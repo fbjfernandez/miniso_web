@@ -1,41 +1,49 @@
-// backend/dao/ProveedorDAO.js
 const supabase = require('../config/supabase');
+const { AppError } = require('../errors');
+const { fail } = require('../utils/db');
+
+function validar(c, parcial = false) {
+  const p = {};
+  for (const [k, etiqueta] of [['nombre', 'La razón social'], ['contacto', 'El contacto'], ['telefono', 'El teléfono'], ['email', 'El email']]) {
+    if (!parcial || c[k] !== undefined) {
+      if (!c[k] || !String(c[k]).trim()) throw new AppError(`${etiqueta} es obligatorio`);
+      p[k] = String(c[k]).trim();
+    }
+  }
+  if (!parcial || c.ruc !== undefined) {
+    if (!/^\d{11}$/.test(String(c.ruc || '').trim())) throw new AppError('El RUC debe tener 11 dígitos');
+    p.ruc = String(c.ruc).trim();
+  }
+  if (p.email && !/^\S+@\S+\.\S+$/.test(p.email)) throw new AppError('El email no es válido');
+  return p;
+}
 
 const ProveedorDAO = {
   async findAll() {
-    const { data, error } = await supabase
-      .from('proveedor').select('*').order('id');
-    if (error) throw error;
+    const { data, error } = await supabase.from('proveedor').select('*').eq('activo', true).order('id');
+    if (error) fail(error);
     return data;
   },
 
-  async findByRuc(ruc) {
-    const { data, error } = await supabase
-      .from('proveedor').select('*').eq('ruc', ruc).single();
-    if (error && error.code !== 'PGRST116') throw error;
-    return data || null;
-  },
-
-  async getNextId() {
-    const { data, error } = await supabase
-      .from('proveedor').select('id').order('id', { ascending: false }).limit(1);
-    if (error) throw error;
-    if (!data || data.length === 0) return 'PR001';
-    const lastNum = parseInt(data[0].id.replace('PR', ''), 10);
-    return 'PR' + String(lastNum + 1).padStart(3, '0');
-  },
-
-  async create(proveedor) {
-    const { data, error } = await supabase
-      .from('proveedor').insert([proveedor]).select().single();
-    if (error) throw error;
+  async create(campos) {
+    const p = validar(campos);
+    const { data, error } = await supabase.from('proveedor').insert([p]).select().single();
+    if (error) {
+      if (error.code === '23505') throw new AppError(`Ya existe un proveedor con RUC ${p.ruc}`, 409);
+      fail(error);
+    }
     return data;
   },
 
   async update(id, campos) {
-    const { data, error } = await supabase
-      .from('proveedor').update(campos).eq('id', id).select().single();
-    if (error) throw error;
+    const p = validar(campos, true);
+    if (!Object.keys(p).length) throw new AppError('No hay cambios para guardar');
+    const { data, error } = await supabase.from('proveedor').update(p).eq('id', id).select().maybeSingle();
+    if (error) {
+      if (error.code === '23505') throw new AppError(`Ya existe un proveedor con RUC ${p.ruc}`, 409);
+      fail(error);
+    }
+    if (!data) throw new AppError('Proveedor no encontrado', 404);
     return data;
   },
 };

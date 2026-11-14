@@ -19,6 +19,21 @@
 
 ---
 
+## 🛠️ Puesta en marcha (v2)
+
+1. **Base de datos** (Supabase → SQL Editor): primero tu script base (tablas y datos iniciales) y después `database/01_completar_bd.sql`. Este segundo archivo no borra datos: agrega triggers (stock automático), validaciones, control de excepciones, funciones atómicas y vistas de reportes, y pasa los IDs de órdenes y entradas a `OC001` / `E001`. Pruébalo primero en una copia del proyecto.
+2. **Backend**: copia `backend/.env.example` a `backend/.env`, completa `SUPABASE_URL`, `SUPABASE_KEY` (clave *service_role*) y `JWT_SECRET`; luego:
+   ```bash
+   cd backend && npm install && npm start
+   npm test          # pruebas de rutas, permisos y validaciones (sin BD)
+   ```
+   En Render define las mismas variables (más `ALLOWED_ORIGINS` con tu URL de Vercel).
+3. **Frontend**: sirve la carpeta `frontend/` (por ejemplo Live Server en el puerto 5500). En `localhost` usa el backend local; en producción usa Render. Para otra URL: `window.MINISO_API_URL = '...'` antes de cargar `js/api.js`.
+
+Detalle de lo que se completó en esta versión: ver [`CAMBIOS.md`](CAMBIOS.md).
+
+---
+
 ## 🧪 Cómo probar la demo
 
 1. Entra a la [demo](https://miniso-web-omega.vercel.app) e inicia sesión con un usuario de prueba:
@@ -47,10 +62,12 @@
   - Descuenta el stock físico en tiempo real.
 
 ### 🔐 Control de Accesos (RBAC) · `HU-07`
-- Middleware **`autorizarRoles`** que intercepta la cabecera `x-user-role`.
+- El login devuelve un **token firmado (HS256, 8 h)**; el frontend lo envía en `Authorization: Bearer ...`.
+- Middleware **`autorizarRoles`** verifica la firma y toma el rol **del token** (ya no de una cabecera editable).
 - Respuestas:
-  - `401 Unauthorized` → cabecera omitida.
+  - `401 Unauthorized` → sin token, token inválido o expirado.
   - `403 Forbidden` → el rol (ej. *Cajero*) no tiene permisos sobre la ruta.
+- El cajero/administrador que registra una venta u orden se toma del token, y los **precios los define la BD**, no el navegador.
 
 ### 🛡️ Protección Anti-Fuerza Bruta · `HU-08` · `POST /api/login`
 - Cifrado con **bcryptjs** (10 salt rounds).

@@ -6,6 +6,8 @@
 const APP = {
   currentUser: null,
   currentPage: 'login',
+  datosCargados: false,
+  datosSucios: false,
 };
 
 // ── DB: caché local (se rellena desde el backend, NO son datos fijos) ──
@@ -19,26 +21,58 @@ const DB = {
   entradas:   [],
 };
 
-// ── Carga de datos desde Supabase vía backend ──
-// forzar=true recarga siempre; forzar=false solo carga si DB está vacío
+// Escapa texto antes de insertarlo en innerHTML (evita XSS con nombres de clientes, productos, etc.)
+function esc(v) {
+  return String(v ?? '').replace(/[&<>"']/g, c => (
+    { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]
+  ));
+}
+
+// Cada rol solo pide lo que el backend le permite (si no, un 403 rompía toda la carga)
+const CARGAS_POR_ROL = {
+  Cajero:        { clientes: () => API.getClientes(), productos: () => API.getProductos(), ventas: () => API.getVentas() },
+  Administrador: { clientes: () => API.getClientes(), productos: () => API.getProductos(), proveedores: () => API.getProveedores(),
+                   ventas: () => API.getVentas(), ordenes: () => API.getOrdenes() },
+  Almacenero:    { productos: () => API.getProductos(), proveedores: () => API.getProveedores(),
+                   ordenes: () => API.getOrdenes(), entradas: () => API.getEntradas() },
+};
+
+// forzar=true recarga siempre; si no, solo carga la primera vez o cuando hubo cambios (APP.datosSucios)
 async function cargarDatosIniciales(forzar = false) {
-  if (!forzar && DB.clientes.length > 0) return; // ya cargado, no repetir
+  if (!APP.currentUser) return;
+  if (!forzar && !APP.datosSucios && APP.datosCargados) return;
+  const cargas = CARGAS_POR_ROL[APP.currentUser.rol] || {};
+  const claves = Object.keys(cargas);
+  const resultados = await Promise.allSettled(claves.map(k => cargas[k]()));
+  resultados.forEach((r, i) => {
+    if (r.status === 'fulfilled') {
+      DB[claves[i]] = r.value || [];
+    } else if (r.reason && r.reason.message !== 'Sesión expirada') {
+      console.error(`Error cargando ${claves[i]}:`, r.reason.message);
+      showToast(`No se pudo cargar ${claves[i]}: ${r.reason.message}`, 'error');
+    }
+  });
+  APP.datosCargados = true;
+  APP.datosSucios = false;
+}
+
+// Llamar después de cualquier cambio (venta, entrada, etc.) para que la próxima pantalla recargue
+function invalidarDatos() { APP.datosSucios = true; }
+
+// ── Sesión (sobrevive a recargar la página, se borra al cerrar la pestaña) ──
+function guardarSesion() {
   try {
-    const [clientes, productos, proveedores, ventas, ordenes] = await Promise.all([
-      API.getClientes(),
-      API.getProductos(),
-      API.getProveedores(),
-      API.getVentas(),
-      API.getOrdenes(),
-    ]);
-    DB.clientes    = clientes    || [];
-    DB.productos   = productos   || [];
-    DB.proveedores = proveedores || [];
-    DB.ventas      = ventas      || [];
-    DB.ordenes     = ordenes     || [];
-  } catch (e) {
-    console.error('Error cargando datos iniciales:', e.message);
-  }
+    if (APP.currentUser) sessionStorage.setItem('miniso_sesion', JSON.stringify({ user: APP.currentUser, page: APP.currentPage }));
+    else sessionStorage.removeItem('miniso_sesion');
+  } catch (e) { /* almacenamiento no disponible */ }
+}
+function restaurarSesion() {
+  try {
+    const raw = sessionStorage.getItem('miniso_sesion');
+    if (!raw) return;
+    const { user, page } = JSON.parse(raw);
+    if (user && user.token) { APP.currentUser = user; APP.currentPage = page || 'dashboard'; }
+  } catch (e) { /* sesión corrupta: se ignora */ }
 }
 
 // ── Iconos SVG ──
@@ -70,19 +104,23 @@ const ICONS = {
 // ── NAVEGACIÓN ──
 function navigateTo(page) {
   APP.currentPage = page;
+  guardarSesion();
   renderApp();
 }
 
 function logout() {
   APP.currentUser = null;
   APP.currentPage = 'login';
+  APP.datosCargados = false;
+  Object.keys(DB).forEach(k => { DB[k] = []; });
+  guardarSesion();
   renderApp();
 }
 
 // ── LAYOUT COMPARTIDO ──
 function renderLayout(title, pageContent, activeNav) {
   const u = APP.currentUser;
-  const initials = u.nombre.split(' ').map(n => n[0]).join('').slice(0, 2);
+  const initials = esc(u.nombre.split(' ').map(n => n[0]).join('').slice(0, 2));
 
   const navByRole = {
     Cajero: [
@@ -135,7 +173,7 @@ function renderLayout(title, pageContent, activeNav) {
           <div class="user-info">
             <div class="user-avatar">${initials}</div>
             <div>
-              <div class="user-name">${u.nombre}</div>
+              <div class="user-name">${esc(u.nombre)}</div>
               <div class="user-role">${u.rol}</div>
             </div>
             <button class="btn-logout" onclick="logout()" title="Cerrar sesión">
@@ -174,9 +212,9 @@ function showToast(msg, type = 'success') {
   const styleTag = document.createElement('style');
   styleTag.textContent = '@keyframes slideIn { from { transform: translateX(40px); opacity:0; } to { transform: translateX(0); opacity:1; } }';
   document.head.appendChild(styleTag);
-  toast.innerHTML = `${type === 'success' ? ICONS.check : ICONS.alert} ${msg}`;
+  toast.innerHTML = `${type === 'success' ? ICONS.check : ICONS.alert} ${esc(msg)}`;
   document.body.appendChild(toast);
-  setTimeout(() => toast.remove(), 3000);
+  setTimeout(() => toast.remove(), 4000);
 }
 
 // ── RENDERIZADO PRINCIPAL ──
@@ -186,8 +224,9 @@ async function renderApp() {
     return;
   }
 
-  // Solo carga datos si aún no han sido cargados
+  // Carga la primera vez, o de nuevo si hubo cambios (ventas, entradas, etc.)
   await cargarDatosIniciales(false);
+  if (!APP.currentUser) return; // la sesión pudo expirar durante la carga
 
   switch (APP.currentPage) {
     case 'dashboard':          renderDashboard();        break;
@@ -208,5 +247,6 @@ async function renderApp() {
 
 // ── INICIO ──
 document.addEventListener('DOMContentLoaded', () => {
+  restaurarSesion();
   renderApp();
 });
