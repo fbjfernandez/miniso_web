@@ -21,10 +21,12 @@ class LoginPage:
         return self
 
     def iniciar_sesion(self, usuario, clave):
-        self.espera.until(EC.visibility_of_element_located(self.TXT_USUARIO)).clear()
-        self.driver.find_element(*self.TXT_USUARIO).send_keys(usuario)
-        self.driver.find_element(*self.TXT_CLAVE).clear()
-        self.driver.find_element(*self.TXT_CLAVE).send_keys(clave)
+        campo_usuario = self.espera.until(EC.element_to_be_clickable(self.TXT_USUARIO))
+        campo_clave = self.espera.until(EC.element_to_be_clickable(self.TXT_CLAVE))
+        campo_usuario.clear()
+        campo_usuario.send_keys(usuario)
+        campo_clave.clear()
+        campo_clave.send_keys(clave)
         self.espera.until(EC.element_to_be_clickable(self.BTN_INGRESAR)).click()
         return self
 

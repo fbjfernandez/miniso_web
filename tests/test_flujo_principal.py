@@ -4,8 +4,8 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
 import pytest
 from selenium import webdriver
-from selenium.webdriver.support.ui import WebDriverWait
 from paginas.login_page import LoginPage
+from paginas.app_page import AppPage
 
 URL_SISTEMA = "https://miniso-web-omega.vercel.app/"
 
@@ -19,10 +19,8 @@ def driver():
 
 def test_acceso_cajero_exitoso(driver):
     login = LoginPage(driver, URL_SISTEMA)
-    
     login.abrir().iniciar_sesion("cajero01", "1234")
-    
-    WebDriverWait(driver, 10).until(lambda d: "login" not in d.current_url.lower())
-    
+
+    assert AppPage(driver).rol_activo().upper() == "CAJERO"
+
     driver.save_screenshot("TC8_Evidencia.png")
-    assert "login" not in driver.current_url.lower()
