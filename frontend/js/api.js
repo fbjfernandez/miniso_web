@@ -1,10 +1,4 @@
-// js/api.js
-// En local usa el backend local; en producción, el de Render.
-// Para forzar otra URL: define window.MINISO_API_URL antes de cargar este script.
-const API_URL = window.MINISO_API_URL ||
-  (['localhost', '127.0.0.1'].includes(location.hostname)
-    ? 'http://localhost:3000/api'
-    : 'https://miniso-web.onrender.com/api');
+const API_URL = window.MINISO_API_URL || '/api';
 
 async function request(method, endpoint, body = null) {
   const headers = { 'Content-Type': 'application/json' };
@@ -19,7 +13,7 @@ async function request(method, endpoint, body = null) {
   try {
     res = await fetch(`${API_URL}${endpoint}`, options);
   } catch (e) {
-    throw new Error('No se pudo conectar con el servidor. Verifica tu conexión (el servidor gratuito puede tardar ~30 s en despertar).');
+    throw new Error('No se pudo conectar con el servidor. Verifica tu conexión.');
   }
 
   let json = null;

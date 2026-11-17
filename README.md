@@ -9,7 +9,6 @@
 ![PostgreSQL](https://img.shields.io/badge/PostgreSQL-4169E1?style=flat-square&logo=postgresql&logoColor=white)
 ![Supabase](https://img.shields.io/badge/Supabase-3ECF8E?style=flat-square&logo=supabase&logoColor=white)
 ![Vercel](https://img.shields.io/badge/Vercel-000000?style=flat-square&logo=vercel&logoColor=white)
-![Render](https://img.shields.io/badge/Render-46E3B7?style=flat-square&logo=render&logoColor=black)
 
 ### 🚀 [**Ver Demo en Vivo →**](https://miniso-web-omega.vercel.app)
 
@@ -27,8 +26,8 @@
    cd backend && npm install && npm start
    npm test          # pruebas de rutas, permisos y validaciones (sin BD)
    ```
-   En Render define las mismas variables (más `ALLOWED_ORIGINS` con tu URL de Vercel).
-3. **Frontend**: sirve la carpeta `frontend/` (por ejemplo Live Server en el puerto 5500). En `localhost` usa el backend local; en producción usa Render. Para otra URL: `window.MINISO_API_URL = '...'` antes de cargar `js/api.js`.
+   En Vercel define las mismas variables (más `ALLOWED_ORIGINS` con tu URL de Vercel). El backend se ejecuta como Serverless Function desde `api/index.js`.
+3. **Frontend**: sirve la carpeta `frontend/` (por ejemplo Live Server en el puerto 5500). Por defecto consume `/api` (mismo origen). Para desarrollo local o una URL distinta: `window.MINISO_API_URL = 'http://localhost:3000/api'` antes de cargar `js/api.js`.
 
 Detalle de lo que se completó en esta versión: ver [`CAMBIOS.md`](CAMBIOS.md).
 
@@ -48,7 +47,7 @@ Detalle de lo que se completó en esta versión: ver [`CAMBIOS.md`](CAMBIOS.md).
 3. Intenta entrar a **Proveedores** u **Órdenes** con el Cajero → `403 Forbidden`.
 4. Falla la contraseña **5 veces** seguidas → la cuenta queda bloqueada.
 
-> ⏳ El backend corre en Render (plan gratuito): el primer login puede tardar ~30 s en despertar.
+> ⏳ El backend corre como Vercel Serverless Function: el primer acceso puede tardar unos segundos en arrancar en frío.
 
 ---
 
@@ -120,7 +119,7 @@ Detalle de lo que se completó en esta versión: ver [`CAMBIOS.md`](CAMBIOS.md).
 
 <div align="center">
 
-**Frontend:** Vercel · **Backend:** Render · **DB:** Supabase (PostgreSQL)
+**Frontend + Backend:** Vercel · **DB:** Supabase (PostgreSQL)
 
 </div>
 ## 👨‍💻 Información de Contacto

@@ -15,7 +15,7 @@ from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.support.ui import WebDriverWait
 
 BASE_URL = "https://miniso-web-omega.vercel.app"
-API_URL = "https://TU-BACKEND.onrender.com"          # AJUSTAR (F12 -> Network -> login)
+API_URL = os.getenv("MINISO_API_URL", "https://miniso-web-omega.vercel.app")
 RUTA_LOGIN = "/api/login"
 RUTA_ADMIN_LISTAR = "/api/usuarios"                  # AJUSTAR: endpoint solo de Administrador
 CLAVE = os.getenv("MINISO_CLAVE", "1234")            # clave de las cuentas de prueba del README
@@ -38,7 +38,7 @@ SEL = {                                              # AJUSTAR todos
 
 # ---------- utilidades ----------
 def esperar(driver, localizador, seg=45):
-    """Espera explícita (el backend gratuito de Render puede tardar ~30 s en despertar)."""
+    """Espera explícita (el backend serverless puede tardar unos segundos en arrancar en frío)."""
     return WebDriverWait(driver, seg).until(EC.visibility_of_element_located(localizador))
 
 

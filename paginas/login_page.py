@@ -10,7 +10,7 @@ class LoginPage:
     ERROR = (By.CSS_SELECTOR, "#login-error .alert-error")
 
     def __init__(self, driver, base_url, timeout=45):
-        # 45 s: el backend gratuito de Render puede tardar ~30 s en despertar
+        # 45 s: el backend serverless puede tardar unos segundos en arrancar en frío
         self.driver = driver
         self.base_url = base_url
         self.espera = WebDriverWait(driver, timeout)
