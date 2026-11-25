@@ -33,3 +33,8 @@ Se ejecuta sobre la BD existente (no borra datos). Incluye:
 - **Control de excepciones**: errores propios `MN001` (stock), `MN002` (dato inválido), `MN003` (regla de negocio), `MN004` (no encontrado) que el backend traduce a 409/400/404; sin `WHEN OTHERS` que oculte la causa.
 - **Funciones atómicas**: `registrar_venta`, `registrar_devolucion`, `crear_orden_compra`, `registrar_entrada`, `registrar_intento_fallido`.
 - **Restricciones CHECK** (precios, stock, cantidades, DNI, RUC, email), códigos automáticos (`C001`, `P001`, `PR001`, `OC001`, `E001`, `D001`) y vistas `v_reporte_ventas`, `v_productos_stock_bajo`, `v_reporte_inventario`.
+
+## Auditoría QA y accesibilidad (2026-11-25)
+- **Accesibilidad WCAG 4.1.2:** se añadió un `aria-label` descriptivo (`Agregar <producto> a la venta`) en los 5 botones `+` de agregar producto en la pantalla de Registrar Venta (`frontend/js/pages.js`, `productoRowsVenta`), reutilizando `esc()` para el nombre. Se eliminaron las 5 violaciones críticas `button-name` y Lighthouse Accessibility pasó de 77 a 92 en esa pantalla (medición en previsualización local; el deploy aún no publicó el cambio).
+- **Análisis estático:** se incorporó `sonar-project.properties` (versión 2.0.0) con las exclusiones de dependencias, entornos virtuales y artefactos de auditoría.
+- **Auditoría ISO/IEC 25010:2023:** nuevos artefactos en `qa_evidencias/` y el reporte `qa_audit_report.md`: 60 casos catalogados en Kiwi TCMS (Test Plan 16827), ejecución E2E de 48 casos aprobados y 12 omitidos (salvaguarda de integridad de BD en producción / precondición de estado) y 26 pruebas unitarias del backend aprobadas.

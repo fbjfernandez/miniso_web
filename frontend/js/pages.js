@@ -389,7 +389,7 @@ function productoRowsVenta(list) {
       <td>${esc(p.nombre)}</td>
       <td>S/ ${p.precio.toFixed(2)}</td>
       <td>${p.stock <= p.stockMin ? `<span class="badge badge-warning">${p.stock}</span>` : p.stock}</td>
-      <td><button class="btn btn-sm btn-outline" ${p.stock === 0 ? 'disabled' : ''} onclick="addToCart('${p.id}')">${ICONS.plus}</button></td>
+      <td><button class="btn btn-sm btn-outline" ${p.stock === 0 ? 'disabled' : ''} onclick="addToCart('${p.id}')" aria-label="Agregar ${esc(p.nombre)} a la venta">${ICONS.plus}</button></td>
     </tr>`).join('');
 }
 

@@ -1,0 +1,42 @@
+
+> miniso-web@2.0.0 test
+> npm --prefix backend test
+
+
+> miniso-backend@2.0.0 test
+> node --test test/*.test.js
+
+Ô£ö token v├ílido se verifica y conserva el rol (1.9984ms)
+Ô£ö token con firma alterada se rechaza (no se puede falsificar el rol) (0.5753ms)
+Ô£ö token firmado con otra clave se rechaza (3.0135ms)
+Ô£ö token expirado se rechaza (0.5046ms)
+Ô£ö mapper de producto entrega el formato del frontend (1.0164ms)
+Ô£ö default origins include the deployed Vercel application (1.3065ms)
+Ô£ö configured origins are added without removing defaults (0.1913ms)
+Ô£ö sin token ÔåÆ 401; header x-user-role falsificado ÔåÆ 401 (1.525ms)
+Ô£ö Cajero no puede ver proveedores ni ├│rdenes (403), Admin s├¡ (1.6022ms)
+Ô£ö Almacenero puede cargar productos, proveedores y ├│rdenes (antes romp├¡a su dashboard) (1.0222ms)
+Ô£ö login correcto devuelve token y NO devuelve la contrase├▒a (16.6903ms)
+Ô£ö login con clave mala usa el contador at├│mico y avisa intentos restantes (4.0237ms)
+Ô£ö 5.┬║ intento fallido bloquea la cuenta (403) (3.348ms)
+Ô£ö venta: cajero y precios NO vienen del body; el servidor usa los del token (1.2896ms)
+Ô£ö venta sin cliente o con cantidad inv├ílida ÔåÆ 400 (0.4129ms)
+Ô£ö error de negocio de la BD (stock insuficiente) llega al usuario con su mensaje (0.3429ms)
+Ô£ö devoluci├│n exige motivo y llama a la funci├│n at├│mica con el usuario del token (0.8318ms)
+Ô£ö producto: valida precio, crea y devuelve formato del frontend (0.6826ms)
+Ô£ö proveedor: RUC debe tener 11 d├¡gitos; duplicado ÔåÆ 409 (0.7527ms)
+Ô£ö usuarios: no se puede auto-desactivar y solo se guardan campos permitidos (0.7411ms)
+Ô£ö orden de compra: solo se puede cancelar; el admin sale del token (0.6142ms)
+Ô£ö entrada: Cajero no puede registrar (403); Almacenero s├¡ (0.5229ms)
+Ô£ö errores de la BD (MN001/MN002/MN003/MN004) se traducen al status correcto (0.6884ms)
+Ô£ö producto sin proveedor se rechaza (id_proveedor es obligatorio en la BD) (0.2287ms)
+Ô£ö listados de productos y proveedores piden solo los activos (0.2835ms)
+Ô£ö fechas timestamptz se muestran en hora de Lima (8 pm del 7/11 no pasa al 8/11) (21.3786ms)
+Ôä╣ tests 26
+Ôä╣ suites 0
+Ôä╣ pass 26
+Ôä╣ fail 0
+Ôä╣ cancelled 0
+Ôä╣ skipped 0
+Ôä╣ todo 0
+Ôä╣ duration_ms 2678.6295

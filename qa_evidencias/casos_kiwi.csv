@@ -1,0 +1,61 @@
+﻿Case ID,Módulo/HU,Título,Tipo,Prioridad,Validaciones reales,Resultado,Motivo,Fecha ejecución,Evidencia
+TC8-01,Flujo principal / HU-01,Acceso Cajero exitoso,Positivo,Media,Login con cajero01 y verificación del rol activo CAJERO; guarda TC8_Evidencia.png,PASÓ,,2026-11-24T21:43:48.542819-05:00,TC8_Evidencia.png
+HU01-01-Cajero,HU-01 Login,Login válido por rol (parametrizado) (Cajero),Positivo,Media,Ingresa con Cajero/Administrador/Almacenero y valida que el rol activo coincide,PASÓ,,2026-11-24T21:43:48.542819-05:00,
+HU01-01-Administrador,HU-01 Login,Login válido por rol (parametrizado) (Administrador),Positivo,Media,Ingresa con Cajero/Administrador/Almacenero y valida que el rol activo coincide,PASÓ,,2026-11-24T21:43:48.542819-05:00,
+HU01-01-Almacenero,HU-01 Login,Login válido por rol (parametrizado) (Almacenero),Positivo,Media,Ingresa con Cajero/Administrador/Almacenero y valida que el rol activo coincide,PASÓ,,2026-11-24T21:43:48.542819-05:00,
+HU01-02,HU-01 Login,Usuario inexistente,Negativo,Media,Muestra 'Credenciales inválidas' con usuario noexiste99,PASÓ,,2026-11-24T21:43:48.542819-05:00,
+HU01-03,HU-01 Login,Campos vacíos no envía,Negativo,Media,"Validación HTML nativa: validationMessage no vacío, sin error de app ni rol activo",PASÓ,,2026-11-24T21:43:48.542819-05:00,
+HU01-04,HU-02 Cierre de sesión,Cerrar sesión,Positivo,Media,Tras logout vuelve a hacerse visible el formulario de login,PASÓ,,2026-11-24T21:43:48.542819-05:00,
+HU01-05,HU-01 Login,Sesión sobrevive a recargar,Positivo,Media,Recarga la página y el rol Administrador permanece activo,PASÓ,,2026-11-24T21:43:48.542819-05:00,
+HU08-01,HU-08 Anti-fuerza bruta,Bloqueo tras 5 intentos,Seguridad,Media,5 claves incorrectas con cuenta desechable; el 5.º mensaje indica 'bloqueado'; desbloquea y elimina la cuenta,OMITIDO,Modifica datos reales. Activa con RUN_DESTRUCTIVE=1,2026-11-24T21:43:48.542819-05:00,
+M01-01,M01 Registrar Venta,Venta completa descuenta stock,Positivo,Media,"Selecciona cliente y producto, confirma venta, verifica comprobante y stock -1; rollback de venta/stock/puntos/control",OMITIDO,Modifica datos reales. Activa con RUN_DESTRUCTIVE=1,2026-11-24T21:43:48.542819-05:00,
+M01-02,M01 Registrar Venta,No vender más que el stock,Límite,Media,Clics por encima del stock; valida toast 'No hay más stock disponible' y cantidad = stock,PASÓ,,2026-11-24T21:43:48.542819-05:00,
+M01-03,M01 Registrar Venta,Confirmar sin cliente,Negativo,Media,Confirma sin seleccionar cliente y valida mensaje que exige cliente,PASÓ,,2026-11-24T21:43:48.542819-05:00,
+M02-01,M02 Clientes,Registrar cliente,Positivo,Media,"Registra cliente con DNI de 8 dígitos, valida toast y fila en tabla; elimina el cliente al final",OMITIDO,Modifica datos reales. Activa con RUN_DESTRUCTIVE=1,2026-11-24T21:43:48.542819-05:00,
+M02-02,M02 Clientes,DNI se corta en 8 dígitos,Límite,Media,Escribe 13 dígitos y valida que el campo queda en 8,PASÓ,,2026-11-24T21:43:48.542819-05:00,
+M02-03,M02 Clientes,DNI de 5 dígitos rechazado,Negativo,Media,El servidor responde 'El DNI debe tener 8 dígitos',PASÓ,,2026-11-24T21:43:48.542819-05:00,
+M03-01,M03 Devoluciones,Devolución total,Positivo,Media,"Crea venta de prueba, busca por comprobante, elige motivo y confirma; limpia venta y devolución",OMITIDO,Modifica datos reales. Activa con RUN_DESTRUCTIVE=1,2026-11-24T21:43:48.542819-05:00,
+M03-02,M03 Devoluciones,Búsqueda sin resultados,Límite,Media,Busca comprobante inexistente y valida 'Sin resultados',PASÓ,,2026-11-24T21:43:48.542819-05:00,
+M03-03,M03 Devoluciones,Confirmar sin motivo,Negativo,Media,Confirma sin seleccionar motivo y valida 'Selecciona un motivo para la devolución',PASÓ,,2026-11-24T21:43:48.542819-05:00,
+M04-01,M04 Productos,Crear producto,Positivo,Media,"Completa formulario, proveedor, valida registro y fila; elimina el producto al final",OMITIDO,Modifica datos reales. Activa con RUN_DESTRUCTIVE=1,2026-11-24T21:43:48.542819-05:00,
+M04-02,M04 Productos,Límites de precio y stock,Límite,Media,rangeUnderflow en precio -0.01 y stock 0; stepMismatch en stock 1.5,PASÓ,,2026-11-24T21:43:48.542819-05:00,
+M04-03,M04 Productos,Formulario vacío inválido,Negativo,Media,valueMissing en nombre y proveedor; formulario inválido,PASÓ,,2026-11-24T21:43:48.542819-05:00,
+M05-01,M05 Proveedores,Crear proveedor,Positivo,Media,"Registra proveedor con RUC de 11 dígitos, valida toast y fila; lo elimina al final",OMITIDO,Modifica datos reales. Activa con RUN_DESTRUCTIVE=1,2026-11-24T21:43:48.542819-05:00,
+M05-02,M05 Proveedores,RUC 10/11/13 dígitos,Límite,Media,"patternMismatch con 10, válido con 11 y recorte a 11 con 13",PASÓ,,2026-11-24T21:43:48.542819-05:00,
+M05-03,M05 Proveedores,RUC con letras y email inválido,Negativo,Media,"patternMismatch en RUC, typeMismatch en email, formulario inválido",PASÓ,,2026-11-24T21:43:48.542819-05:00,
+M06-01,M06 Órdenes de compra,Generar orden de compra,Positivo,Media,"Elige proveedor y producto, graba orden, valida toast; elimina la orden creada",OMITIDO,Modifica datos reales. Activa con RUN_DESTRUCTIVE=1,2026-11-24T21:43:48.542819-05:00,
+M06-02,M06 Órdenes de compra,Quitar única unidad vacía carrito,Límite,Media,Quita la única unidad y valida 'Agrega productos a la orden' y total 0.00,PASÓ,,2026-11-24T21:43:48.542819-05:00,
+M06-03,M06 Órdenes de compra,Grabar sin proveedor,Negativo,Media,Valida 'Selecciona un proveedor para la orden',PASÓ,,2026-11-24T21:43:48.542819-05:00,
+M07-01,M07 Reporte de Ventas,Muestra totales y detalle,Positivo,Media,Presenta 'Total vendido en el período' y 'Detalle de ventas (' sin alerta de error,PASÓ,,2026-11-24T21:43:48.542819-05:00,
+M07-02,M07 Reporte de Ventas,Período sin ventas,Límite,Media,Rango 2000-01-01 muestra 'Sin ventas en este período' y exportar avisa que no hay ventas,PASÓ,,2026-11-24T21:43:48.542819-05:00,
+M07-03,M07 Reporte de Ventas,Fecha inicio mayor que fin,Negativo,Media,Valida mensaje 'no puede ser mayor',PASÓ,,2026-11-24T21:43:48.542819-05:00,
+M08-01,M08 Usuarios y roles,Crear usuario,Positivo,Media,"Crea usuario QA, valida toast y fila; elimina la cuenta al final",OMITIDO,Modifica datos reales. Activa con RUN_DESTRUCTIVE=1,2026-11-24T21:43:48.542819-05:00,
+M08-02,M08 Usuarios y roles,Clave de 3 caracteres,Límite,Media,El servidor exige 'al menos 4 caracteres',PASÓ,,2026-11-24T21:43:48.542819-05:00,
+M08-03,M08 Usuarios y roles,Usuario duplicado,Negativo,Media,Intenta crear admin01 y valida mensaje 'ya existe',PASÓ,,2026-11-24T21:43:48.542819-05:00,
+M09-01,M09 Registrar Entrada,Confirmar entrada,Positivo,Media,"Crea orden de prueba, recibe y confirma entrada, valida toast; elimina entrada y orden",OMITIDO,Modifica datos reales. Activa con RUN_DESTRUCTIVE=1,2026-11-24T21:43:48.542819-05:00,
+M09-02,M09 Registrar Entrada,Cantidad entre 1 y lo pedido,Límite,Media,Excede el máximo y baja de 1; valida tope = pedida y mínimo = 1,OMITIDO,No hay órdenes pendientes (genera una como Administrador),2026-11-24T21:43:48.542819-05:00,
+M09-03,M09 Registrar Entrada,Confirmar sin productos,Negativo,Media,Quita todos los productos y valida 'Agrega al menos un producto recibido',OMITIDO,No hay órdenes pendientes (genera una como Administrador),2026-11-24T21:43:48.542819-05:00,
+M10-01,M10 Productos Agotados,Lista solo productos en/bajo mínimo,Positivo,Media,Valida encabezado y que cada fila tenga stock <= mínimo,PASÓ,,2026-11-24T21:43:48.542819-05:00,
+M10-02,M10 Productos Agotados,Sin productos agotados,Límite,Media,Fuerza DB.productos=[] y valida mensaje vacío sin alerta,PASÓ,,2026-11-24T21:43:48.542819-05:00,
+M10-03,M10 Productos Agotados,Token vencido cierra sesión,Seguridad,Media,"Sustituye el JWT por 'token-invalido', recarga y valida 'sesión expiró' y vuelta al login",PASÓ,,2026-11-24T21:43:48.542819-05:00,
+M11-01,M11 Reporte de Inventario,Valor total coincide con tabla,Positivo,Media,Suma el valor de las filas y lo compara con el indicador; compara conteo de productos,PASÓ,,2026-11-24T21:43:48.542819-05:00,
+M11-02,M11 Reporte de Inventario,Catálogo vacío muestra ceros,Límite,Media,Fuerza DB.productos=[] y valida 'S/ 0.00' y '0',PASÓ,,2026-11-24T21:43:48.542819-05:00,
+M11-03,M11 Reporte de Inventario,Exportar con catálogo vacío,Negativo,Media,Fuerza catálogo vacío y valida 'No hay productos para exportar',PASÓ,,2026-11-24T21:43:48.542819-05:00,
+HU07-01-Cajero,HU-07 RBAC / menú,Menú según rol (parametrizado) (Cajero),Seguridad,Media,"Valida items visibles y ocultos para Cajero, Administrador y Almacenero",PASÓ,,2026-11-24T21:43:48.542819-05:00,
+HU07-01-Administrador,HU-07 RBAC / menú,Menú según rol (parametrizado) (Administrador),Seguridad,Media,"Valida items visibles y ocultos para Cajero, Administrador y Almacenero",PASÓ,,2026-11-24T21:43:48.542819-05:00,
+HU07-01-Almacenero,HU-07 RBAC / menú,Menú según rol (parametrizado) (Almacenero),Seguridad,Media,"Valida items visibles y ocultos para Cajero, Administrador y Almacenero",PASÓ,,2026-11-24T21:43:48.542819-05:00,
+HU07-02,HU-07 RBAC / API,API devuelve 403 al Cajero en usuarios,Seguridad,Media,fetch autenticado a /usuarios desde sesión Cajero y valida HTTP 403,PASÓ,,2026-11-24T21:43:48.542819-05:00,
+TC-F-001,TC-F / HU-01,Login válido Cajero,Positivo,Media,Login y valida texto CAJERO y ausencia del formulario,PASÓ,,2026-11-24T21:43:48.542819-05:00,evidencias/TC-F-001_evidencia_01.png
+TC-F-002,TC-F / HU-01,Clave incorrecta rechazada,Negativo,Media,Valida 'Credenciales inválidas' y hace login correcto para reiniciar contador,PASÓ,,2026-11-24T21:43:48.542819-05:00,evidencias/TC-F-002_evidencia_01.png
+TC-F-003,TC-F / HU-01,Campos vacíos no envían POST,Negativo,Media,Cuenta recursos /api/login antes y después; valida que no aumentan,PASÓ,,2026-11-24T21:43:48.542819-05:00,evidencias/TC-F-003_evidencia_01.png
+TC-F-004,TC-F / HU-01,Flujo Cajero llega a Registrar Venta,Positivo,Media,"Tras login, el enlace 'Registrar Venta' está visible y se puede pulsar",PASÓ,,2026-11-24T21:43:48.542819-05:00,evidencias/TC-F-004_evidencia_01.png
+TC-F-005,TC-F / HU-02,Cerrar sesión,Positivo,Media,Pulsa logout y valida que reaparece el login,PASÓ,,2026-11-24T21:43:48.542819-05:00,evidencias/TC-F-005_evidencia_01.png
+TC-F-006,TC-F / HU-02,Atrás tras logout,Seguridad,Media,Valida sessionStorage borrado y que al volver atrás no hay sidebar interno,PASÓ,,2026-11-24T21:43:48.542819-05:00,evidencias/TC-F-006_evidencia_01.png
+TC-F-007,TC-F / HU-02,Logout sin sesión,Negativo,Media,"Limpia almacenamiento, recarga y valida login sin error",PASÓ,,2026-11-24T21:43:48.542819-05:00,evidencias/TC-F-007_evidencia_01.png
+TC-F-011,TC-F / HU-06,Menú Cajero,Seguridad,Media,Compara el conjunto exacto de 4 items del menú Cajero,PASÓ,,2026-11-24T21:43:48.542819-05:00,evidencias/TC-F-011_evidencia_01.png
+TC-F-012,TC-F / HU-06,Menú Almacenero,Seguridad,Media,Compara el conjunto exacto de 4 items del menú Almacenero,PASÓ,,2026-11-24T21:43:48.542819-05:00,evidencias/TC-F-012_evidencia_01.png
+TC-F-014,TC-F / HU-07,Admin accede a endpoint protegido,Seguridad,Media,GET /usuarios con JWT de admin01 → HTTP 200,PASÓ,,2026-11-24T21:43:48.542819-05:00,evidencias/TC-F-014_evidencia_01.png
+TC-F-015,TC-F / HU-07,Cajero recibe 403,Seguridad,Media,GET /usuarios con JWT de cajero01 → HTTP 403,PASÓ,,2026-11-24T21:43:48.542819-05:00,evidencias/TC-F-015_evidencia_01.png
+TC-F-016,TC-F / HU-07,Sin token recibe 401,Seguridad,Media,GET /usuarios sin Authorization → HTTP 401,PASÓ,,2026-11-24T21:43:48.542819-05:00,evidencias/TC-F-016_evidencia_01.png
+TC-F-017,TC-F / HU-07,Header x-user-role falsificado,Seguridad,Media,GET /usuarios con x-user-role=Administrador sin JWT → HTTP 401,PASÓ,,2026-11-24T21:43:48.542819-05:00,evidencias/TC-F-017_evidencia_01.png
+TC-F-020,TC-F / HU-08,Bloqueo a los 5 intentos y desbloqueo,Seguridad,Media,5 fallos → HTTP 403 'bloqueado'; clave correcta sigue rechazada; desbloquea en finally,OMITIDO,Modifica datos reales. Activa con RUN_DESTRUCTIVE=1,2026-11-24T21:43:48.542819-05:00,

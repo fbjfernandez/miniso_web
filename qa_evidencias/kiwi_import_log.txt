@@ -1,0 +1,5 @@
+No se pudo resolver KIWI_MANAGER (<Fault -32098: 'Authentication failed when calling "User.filter"'>); se usa author=33493
+Estado de ejecuci├│n creado: WAIVED (weight=40)
+plan=16827 product=15373 version=23751 build=28549 category=16982 priority=38 case_status=17 PASSED=21 WAIVED=44
+Test Run creado: 16105
+FINAL: run=16105 casos=60 creados=60 reutilizados=0 a├▒adidos_al_plan=60 PASSED=48 WAIVED=12

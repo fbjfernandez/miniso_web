@@ -1,0 +1,86 @@
+INICIO: 2026-11-24T21:43:47.8222727-05:00
+COMANDO: pytest -v -ra --junitxml=D:\proyecto_final_diarso\Miniso_web\qa_evidencias\pytest_results_20261124_214347.xml (HEADLESS=1, objetivo=https://miniso-web-omega.vercel.app/)
+============================= test session starts =============================
+platform win32 -- Python 3.13.14, pytest-9.1.1, pluggy-1.7.0 -- D:\proyecto_final_diarso\Miniso_web\venv\Scripts\python.exe
+cachedir: .pytest_cache
+rootdir: D:\proyecto_final_diarso\Miniso_web
+configfile: pytest.ini
+testpaths: tests
+collecting ... collected 60 items
+
+tests/test_flujo_principal.py::test_acceso_cajero_exitoso PASSED         [  1%]
+tests/test_login.py::test_login_valido_por_rol[Cajero] PASSED            [  3%]
+tests/test_login.py::test_login_valido_por_rol[Administrador] PASSED     [  5%]
+tests/test_login.py::test_login_valido_por_rol[Almacenero] PASSED        [  6%]
+tests/test_login.py::test_login_usuario_inexistente PASSED               [  8%]
+tests/test_login.py::test_login_campos_vacios_no_envia PASSED            [ 10%]
+tests/test_login.py::test_cerrar_sesion PASSED                           [ 11%]
+tests/test_login.py::test_sesion_sobrevive_a_recargar PASSED             [ 13%]
+tests/test_login.py::test_bloqueo_tras_5_intentos SKIPPED (Modifica ...) [ 15%]
+tests/test_m01_registrar_venta.py::test_m01_feliz_venta_completa_descuenta_stock SKIPPED [ 16%]
+tests/test_m01_registrar_venta.py::test_m01_borde_no_se_vende_mas_que_el_stock PASSED [ 18%]
+tests/test_m01_registrar_venta.py::test_m01_error_confirmar_sin_cliente PASSED [ 20%]
+tests/test_m02_clientes.py::test_m02_feliz_registrar_cliente SKIPPED     [ 21%]
+tests/test_m02_clientes.py::test_m02_borde_dni_se_corta_en_8_digitos PASSED [ 23%]
+tests/test_m02_clientes.py::test_m02_error_dni_de_5_digitos_lo_rechaza_el_servidor PASSED [ 25%]
+tests/test_m03_devoluciones.py::test_m03_feliz_devolucion_total SKIPPED  [ 26%]
+tests/test_m03_devoluciones.py::test_m03_borde_busqueda_sin_resultados PASSED [ 28%]
+tests/test_m03_devoluciones.py::test_m03_error_confirmar_sin_motivo PASSED [ 30%]
+tests/test_m04_productos.py::test_m04_feliz_crear_producto SKIPPED (...) [ 31%]
+tests/test_m04_productos.py::test_m04_borde_limites_de_precio_y_stock PASSED [ 33%]
+tests/test_m04_productos.py::test_m04_error_formulario_vacio_es_invalido PASSED [ 35%]
+tests/test_m05_proveedores.py::test_m05_feliz_crear_proveedor SKIPPED    [ 36%]
+tests/test_m05_proveedores.py::test_m05_borde_ruc_de_10_11_y_13_digitos PASSED [ 38%]
+tests/test_m05_proveedores.py::test_m05_error_ruc_con_letras_y_email_invalido PASSED [ 40%]
+tests/test_m06_ordenes_compra.py::test_m06_feliz_generar_orden SKIPPED   [ 41%]
+tests/test_m06_ordenes_compra.py::test_m06_borde_quitar_la_unica_unidad_vacia_el_carrito PASSED [ 43%]
+tests/test_m06_ordenes_compra.py::test_m06_error_grabar_sin_proveedor PASSED [ 45%]
+tests/test_m07_reporte_ventas.py::test_m07_feliz_muestra_totales_y_detalle PASSED [ 46%]
+tests/test_m07_reporte_ventas.py::test_m07_borde_periodo_sin_ventas PASSED [ 48%]
+tests/test_m07_reporte_ventas.py::test_m07_error_fecha_inicio_mayor_que_fin PASSED [ 50%]
+tests/test_m08_usuarios.py::test_m08_feliz_crear_usuario SKIPPED (Mo...) [ 51%]
+tests/test_m08_usuarios.py::test_m08_borde_clave_de_3_caracteres PASSED  [ 53%]
+tests/test_m08_usuarios.py::test_m08_error_usuario_duplicado PASSED      [ 55%]
+tests/test_m09_registrar_entrada.py::test_m09_feliz_confirmar_entrada SKIPPED [ 56%]
+tests/test_m09_registrar_entrada.py::test_m09_borde_cantidad_entre_1_y_lo_pedido SKIPPED [ 58%]
+tests/test_m09_registrar_entrada.py::test_m09_error_confirmar_sin_productos SKIPPED [ 60%]
+tests/test_m10_productos_agotados.py::test_m10_feliz_lista_solo_productos_en_o_bajo_el_minimo PASSED [ 61%]
+tests/test_m10_productos_agotados.py::test_m10_borde_sin_productos_muestra_mensaje_vacio PASSED [ 63%]
+tests/test_m10_productos_agotados.py::test_m10_error_token_vencido_cierra_sesion PASSED [ 65%]
+tests/test_m11_reporte_inventario.py::test_m11_feliz_valor_total_coincide_con_la_tabla PASSED [ 66%]
+tests/test_m11_reporte_inventario.py::test_m11_borde_catalogo_vacio_muestra_ceros PASSED [ 68%]
+tests/test_m11_reporte_inventario.py::test_m11_error_exportar_con_catalogo_vacio PASSED [ 70%]
+tests/test_roles.py::test_menu_segun_rol[Cajero] PASSED                  [ 71%]
+tests/test_roles.py::test_menu_segun_rol[Administrador] PASSED           [ 73%]
+tests/test_roles.py::test_menu_segun_rol[Almacenero] PASSED              [ 75%]
+tests/test_roles.py::test_api_devuelve_403_al_cajero_en_usuarios PASSED  [ 76%]
+tests/test_tc10_autenticacion.py::test_tc_f_001_login_valido_cajero PASSED [ 78%]
+tests/test_tc10_autenticacion.py::test_tc_f_002_clave_incorrecta_se_rechaza PASSED [ 80%]
+tests/test_tc10_autenticacion.py::test_tc_f_003_campos_vacios_no_envian_post PASSED [ 81%]
+tests/test_tc10_autenticacion.py::test_tc_f_004_flujo_cajero_llega_a_registrar_venta PASSED [ 83%]
+tests/test_tc10_autenticacion.py::test_tc_f_005_cerrar_sesion PASSED     [ 85%]
+tests/test_tc10_autenticacion.py::test_tc_f_006_atras_tras_logout_no_muestra_contenido_interno PASSED [ 86%]
+tests/test_tc10_autenticacion.py::test_tc_f_007_logout_sin_sesion_no_da_error PASSED [ 88%]
+tests/test_tc10_autenticacion.py::test_tc_f_011_menu_cajero PASSED       [ 90%]
+tests/test_tc10_autenticacion.py::test_tc_f_012_menu_almacenero PASSED   [ 91%]
+tests/test_tc10_autenticacion.py::test_tc_f_014_admin_accede_a_endpoint_protegido PASSED [ 93%]
+tests/test_tc10_autenticacion.py::test_tc_f_015_cajero_recibe_403_en_endpoint_de_admin PASSED [ 95%]
+tests/test_tc10_autenticacion.py::test_tc_f_016_sin_token_recibe_401 PASSED [ 96%]
+tests/test_tc10_autenticacion.py::test_tc_f_017_header_x_user_role_falsificado_recibe_401 PASSED [ 98%]
+tests/test_tc10_autenticacion.py::test_tc_f_020_cuenta_se_bloquea_a_los_5_intentos_y_se_desbloquea SKIPPED [100%]
+
+- generated xml file: D:\proyecto_final_diarso\Miniso_web\qa_evidencias\pytest_results_20261124_214347.xml -
+=========================== short test summary info ===========================
+SKIPPED [1] tests\test_login.py:41: Modifica datos reales. Activa con RUN_DESTRUCTIVE=1
+SKIPPED [1] tests\test_m01_registrar_venta.py:58: Modifica datos reales. Activa con RUN_DESTRUCTIVE=1
+SKIPPED [1] tests\test_m02_clientes.py:15: Modifica datos reales. Activa con RUN_DESTRUCTIVE=1
+SKIPPED [1] tests\test_m03_devoluciones.py:21: Modifica datos reales. Activa con RUN_DESTRUCTIVE=1
+SKIPPED [1] tests\test_m04_productos.py:16: Modifica datos reales. Activa con RUN_DESTRUCTIVE=1
+SKIPPED [1] tests\test_m05_proveedores.py:15: Modifica datos reales. Activa con RUN_DESTRUCTIVE=1
+SKIPPED [1] tests\test_m06_ordenes_compra.py:27: Modifica datos reales. Activa con RUN_DESTRUCTIVE=1
+SKIPPED [1] tests\test_m08_usuarios.py:22: Modifica datos reales. Activa con RUN_DESTRUCTIVE=1
+SKIPPED [1] tests\test_m09_registrar_entrada.py:27: Modifica datos reales. Activa con RUN_DESTRUCTIVE=1
+SKIPPED [2] tests\test_m09_registrar_entrada.py:17: No hay ¾rdenes pendientes (genera una como Administrador)
+SKIPPED [1] tests\test_tc10_autenticacion.py:215: Modifica datos reales. Activa con RUN_DESTRUCTIVE=1
+================= 48 passed, 12 skipped in 379.81s (0:06:19) ==================
+FIN: 2026-11-24T21:50:08.4545029-05:00 EXITCODE=0
