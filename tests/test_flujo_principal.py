@@ -7,19 +7,22 @@ from selenium import webdriver
 from paginas.login_page import LoginPage
 from paginas.app_page import AppPage
 
-URL_SISTEMA = "https://miniso-web-omega.vercel.app/"
+URL_SISTEMA = os.getenv("MINISO_URL", "https://miniso-web-omega.vercel.app/")
+CLAVE = os.getenv("MINISO_CLAVE", "1234")
 
 @pytest.fixture
 def driver():
     opciones = webdriver.ChromeOptions()
     opciones.add_argument("--start-maximized")
+    if os.getenv("HEADLESS") == "1":
+        opciones.add_argument("--headless=new")
     driver_instancia = webdriver.Chrome(options=opciones)
     yield driver_instancia
     driver_instancia.quit()
 
 def test_acceso_cajero_exitoso(driver):
     login = LoginPage(driver, URL_SISTEMA)
-    login.abrir().iniciar_sesion("cajero01", "1234")
+    login.abrir().iniciar_sesion("cajero01", CLAVE)
 
     assert AppPage(driver).rol_activo().upper() == "CAJERO"
 

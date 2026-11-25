@@ -1,9 +1,13 @@
-"""test_tc10_autenticacion.py — casos TC-F del TC9 de MINISO ejecutados con Selenium / requests.
+"""test_tc10_autenticacion.py — casos TC-F del TC9 de MINISO ejecutados con
+Selenium / requests contra la versión v2 (autenticación por JWT).
 
-ANTES DE CORRER: ajusta BASE_URL, API_URL, las rutas y los selectores (diccionario SEL).
-Todo lo marcado con # AJUSTAR son suposiciones mías: no pude leer tu código.
-Cómo obtenerlos: abre la app, clic derecho -> Inspeccionar (F12) sobre cada campo/botón
-y mira su id / name / class; y en la pestaña Network mira la URL real de cada petición.
+La app se toma de ``MINISO_URL`` (deploy de Vercel por defecto) y la API de
+``MINISO_API_URL`` o de ``MINISO_URL`` + ``/api``. La clave de las cuentas demo
+se puede cambiar con ``MINISO_CLAVE``.
+
+Los casos TC-F-014 a TC-F-016 validan el backend con ``requests``: ya no se
+envía ``x-user-role``, el rol viaja dentro del token firmado y se manda como
+``Authorization: Bearer <token>``.
 """
 import os
 import time
@@ -14,31 +18,47 @@ from selenium.webdriver.common.by import By
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.support.ui import WebDriverWait
 
-BASE_URL = "https://miniso-web-omega.vercel.app"
-API_URL = os.getenv("MINISO_API_URL", "https://miniso-web-omega.vercel.app")
-RUTA_LOGIN = "/api/login"
-RUTA_ADMIN_LISTAR = "/api/usuarios"                  # AJUSTAR: endpoint solo de Administrador
-CLAVE = os.getenv("MINISO_CLAVE", "1234")            # clave de las cuentas de prueba del README
-USUARIOS = {                                         # (usuario, clave) de cada rol
-    "admin": ("admin01", "1234"),
-    "cajero": ("cajero01", "1234"),
-    "almacen": ("almacen01", "1234"),
-}
-CUENTA_BLOQUEADA = "usuario_tc9_bloqueo"             # créala y bloquéala antes (TC-F-020)
+import api_auth
+from conftest import solo_destructiva
 
-SEL = {                                              # AJUSTAR todos
-    "usuario": (By.ID, "usuario"),
-    "clave": (By.ID, "password"),
-    "ingresar": (By.CSS_SELECTOR, "button[type='submit']"),
-    "cerrar_sesion": (By.XPATH, "//*[contains(text(),'Cerrar sesión')]"),
-    "menu": (By.CSS_SELECTOR, "nav a"),
-    "registrar_venta": (By.XPATH, "//*[contains(text(),'Registrar Venta')]"),
+BASE_URL = os.getenv("MINISO_URL", "https://miniso-web-omega.vercel.app/")
+API_URL = api_auth.API_URL
+RUTA_LOGIN = "/login"
+RUTA_USUARIOS = "/usuarios"          # endpoint solo de Administrador
+CLAVE = api_auth.CLAVE
+USUARIOS = {
+    "admin": ("admin01", CLAVE),
+    "cajero": ("cajero01", CLAVE),
+    "almacen": ("almacen01", CLAVE),
 }
+CUENTA_BLOQUEO = os.getenv("MINISO_USER_BLOQUEO", "cajero01")
+
+# Selectores confirmados en frontend/js/pages.js (renderLogin) y app.js
+# (renderLayout): ids del formulario, clases del menú lateral y del logout.
+SEL = {
+    "usuario": (By.ID, "login-user"),
+    "clave": (By.ID, "login-pass"),
+    "ingresar": (By.CSS_SELECTOR, "button.btn-login"),
+    "cerrar_sesion": (By.CSS_SELECTOR, ".btn-logout"),
+    "menu": (By.CSS_SELECTOR, ".sidebar-nav a.nav-item"),
+    "registrar_venta": (
+        By.XPATH,
+        "//nav[contains(@class,'sidebar-nav')]//a[contains(., 'Registrar Venta')]",
+    ),
+}
+
+
+@pytest.fixture(scope="module", autouse=True)
+def cuentas_demo_disponibles():
+    """Evita que un bloqueo de una ejecución anterior rompa todo el módulo."""
+    api_auth.desbloquear_cuentas_demo()
+    yield
+    api_auth.desbloquear_cuentas_demo()
 
 
 # ---------- utilidades ----------
 def esperar(driver, localizador, seg=45):
-    """Espera explícita (el backend serverless puede tardar unos segundos en arrancar en frío)."""
+    """Espera explícita (el backend serverless puede tardar en arrancar en frío)."""
     return WebDriverWait(driver, seg).until(EC.visibility_of_element_located(localizador))
 
 
@@ -78,14 +98,14 @@ def menu_textos(driver):
 def test_tc_f_001_login_valido_cajero(driver):
     login(driver, "cajero01", CLAVE)
     esperar_dashboard(driver)
-    assert "CAJERO" in texto_pagina(driver).upper()   # AJUSTAR si el rol se muestra distinto
+    assert "CAJERO" in texto_pagina(driver).upper()
     assert not login_visible(driver)
 
 
 def test_tc_f_002_clave_incorrecta_se_rechaza(driver):
     login(driver, "cajero01", "Incorrecta_TC9")
     time.sleep(3)  # da tiempo a la respuesta del backend
-    assert "Usuario o contraseña incorrectos" in texto_pagina(driver)
+    assert "Credenciales inválidas" in texto_pagina(driver)
     assert login_visible(driver)
     # reinicia el contador de intentos con un login correcto
     login(driver, "cajero01", CLAVE)
@@ -125,10 +145,13 @@ def test_tc_f_006_atras_tras_logout_no_muestra_contenido_interno(driver):
     esperar_dashboard(driver)
     driver.find_element(*SEL["cerrar_sesion"]).click()
     esperar(driver, SEL["usuario"])
+    # La sesión debe quedar borrada (no se restaura al volver atrás)
+    assert driver.execute_script("return sessionStorage.getItem('miniso_sesion')") is None
     driver.back()
     time.sleep(2)
-    assert login_visible(driver)
-    assert "CAJERO" not in texto_pagina(driver).upper()
+    # Puede quedarse en el login o salir de la app, pero nunca mostrar el panel interno
+    assert not driver.find_elements(By.CSS_SELECTOR, ".sidebar-role-badge")
+    assert not driver.find_elements(By.CSS_SELECTOR, ".sidebar-nav")
 
 
 def test_tc_f_007_logout_sin_sesion_no_da_error(driver):
@@ -150,32 +173,83 @@ def test_tc_f_011_menu_cajero(driver):
 def test_tc_f_012_menu_almacenero(driver):
     login(driver, "almacen01", CLAVE)
     esperar_dashboard(driver)
-    esperado = sorted(["Registrar Entrada", "Productos Agotados", "Reporte de Inventario"])
+    esperado = sorted(
+        ["Dashboard", "Registrar Entrada", "Productos Agotados", "Reporte de Inventario"]
+    )
     assert menu_textos(driver) == esperado
 
 
-# ---------- HU-07: backend (API con requests) ----------
+# ---------- HU-07: backend (API con requests + JWT) ----------
 def test_tc_f_014_admin_accede_a_endpoint_protegido(driver):
-    r = requests.get(API_URL + RUTA_ADMIN_LISTAR, headers={"x-user-role": "Administrador"}, timeout=60)
-    assert r.status_code == 200, f"Se esperaba 200 y llegó {r.status_code}"
+    abrir_login(driver)
+    jwt = api_auth.token("admin01", CLAVE)
+    r = requests.get(API_URL + RUTA_USUARIOS, headers=api_auth.headers(jwt), timeout=60)
+    assert r.status_code == 200, f"Se esperaba 200 y llegó {r.status_code}: {r.text[:300]}"
 
 
 def test_tc_f_015_cajero_recibe_403_en_endpoint_de_admin(driver):
-    r = requests.get(API_URL + RUTA_ADMIN_LISTAR, headers={"x-user-role": "Cajero"}, timeout=60)
-    assert r.status_code == 403, f"Se esperaba 403 y llegó {r.status_code}"
+    abrir_login(driver)
+    jwt = api_auth.token("cajero01", CLAVE)
+    r = requests.get(API_URL + RUTA_USUARIOS, headers=api_auth.headers(jwt), timeout=60)
+    assert r.status_code == 403, f"Se esperaba 403 y llegó {r.status_code}: {r.text[:300]}"
 
 
-def test_tc_f_016_sin_cabecera_de_rol_recibe_401(driver):
-    r = requests.get(API_URL + RUTA_ADMIN_LISTAR, timeout=60)
+def test_tc_f_016_sin_token_recibe_401(driver):
+    abrir_login(driver)
+    r = requests.get(API_URL + RUTA_USUARIOS, timeout=60)
+    assert r.status_code == 401, f"Se esperaba 401 y llegó {r.status_code}"
+
+
+def test_tc_f_017_header_x_user_role_falsificado_recibe_401(driver):
+    """El header antiguo ya no autentica: el rol debe venir firmado en el JWT."""
+    abrir_login(driver)
+    r = requests.get(
+        API_URL + RUTA_USUARIOS,
+        headers={"x-user-role": "Administrador"},
+        timeout=60,
+    )
     assert r.status_code == 401, f"Se esperaba 401 y llegó {r.status_code}"
 
 
 # ---------- HU-08: cuenta bloqueada ----------
-def test_tc_f_020_cuenta_bloqueada_no_entra_con_clave_correcta(driver):
-    
-    r = requests.post(API_URL + RUTA_LOGIN,
-                      json={"usuario": CUENTA_BLOQUEADA, "password": CLAVE}, timeout=60)  
-    assert r.status_code == 403, f"Se esperaba 403 y llegó {r.status_code}"
-    login(driver, CUENTA_BLOQUEADA, CLAVE)
-    time.sleep(3)
-    assert login_visible(driver)
+@solo_destructiva
+@pytest.mark.destructiva
+def test_tc_f_020_cuenta_se_bloquea_a_los_5_intentos_y_se_desbloquea(driver):
+    """TC-F-020: el 5.º intento fallido bloquea la cuenta demo.
+
+    Al terminar (incluso si la prueba falla) la cuenta se desbloquea para no
+    romper los casos siguientes ni las demás suites.
+    """
+    cuenta = os.getenv("MINISO_USER_BLOQUEO")
+    creada = None
+    if not cuenta:
+        cuenta = api_auth.crear_usuario_desechable("qa_tc10")
+        creada = cuenta
+    try:
+        assert api_auth.desbloquear(cuenta), (
+            f"No se pudo preparar la cuenta {cuenta} (¿admin01 bloqueado?)"
+        )
+        ultimo = None
+        for _ in range(5):
+            ultimo = api_auth.login(cuenta, "clave_mala_tc10")
+        assert ultimo is not None and ultimo.status_code == 403, (
+            f"Se esperaba 403 tras 5 fallos y llegó "
+            f"{getattr(ultimo, 'status_code', 'sin respuesta')}"
+        )
+        assert "bloqueado" in ultimo.text.lower()
+
+        # Aun con la clave correcta la cuenta bloqueada no debe entrar
+        r = api_auth.login(cuenta, CLAVE)
+        assert r.status_code == 403, f"Se esperaba 403 y llegó {r.status_code}"
+
+        login(driver, cuenta, CLAVE)
+        time.sleep(3)
+        assert login_visible(driver)
+    finally:
+        try:
+            assert api_auth.desbloquear(cuenta), (
+                f"La cuenta {cuenta} quedó bloqueada: desbloquéala desde Usuarios"
+            )
+        finally:
+            if creada:
+                api_auth.eliminar_usuario(creada)

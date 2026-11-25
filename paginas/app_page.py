@@ -22,12 +22,16 @@ class AppPage:
 
     def ir_a(self, etiqueta):
         xp = f"//nav[contains(@class,'sidebar-nav')]//a[contains(@class,'nav-item')][contains(., '{etiqueta}')]"
-        self.espera.until(EC.element_to_be_clickable((By.XPATH, xp))).click()
+        el = self.espera.until(EC.element_to_be_clickable((By.XPATH, xp)))
+        self.js("arguments[0].click();", el)
         return self
 
     def clic_boton(self, texto):
         xp = f"//button[contains(., '{texto}')]"
-        self.espera.until(EC.element_to_be_clickable((By.XPATH, xp))).click()
+        el = self.espera.until(EC.element_to_be_clickable((By.XPATH, xp)))
+        # Chrome headless a veces descarta el clic nativo justo después de un
+        # re-render de la SPA; el clic DOM sí dispara siempre el onclick inline.
+        self.js("arguments[0].click();", el)
         return self
 
     def toast(self, texto):
@@ -42,11 +46,31 @@ class AppPage:
 
     def escribir(self, id_input, valor):
         el = self.espera.until(EC.visibility_of_element_located((By.ID, id_input)))
-        el.clear()
-        el.send_keys(valor)
+        # maxlength recorta lo tecleado; así sabemos qué valor es correcto
+        maxlen = el.get_attribute("maxlength")
+        esperado = str(valor)[: int(maxlen)] if maxlen else str(valor)
+        for _ in range(3):
+            el.clear()
+            el.send_keys(valor)
+            if el.get_attribute("value") == esperado:
+                return
+        # Chrome puede perder el foco del campo y descartar lo tecleado; se fija
+        # el valor por JS (respetando maxlength) para que la prueba no sea azarosa.
+        self.fijar(id_input, esperado)
+        obtenido = self.valor(id_input)
+        if obtenido != esperado:
+            raise AssertionError(
+                f"{id_input}: se esperaba '{esperado}' y quedó '{obtenido}'"
+            )
+
+    def clic_elemento(self, elemento):
+        """Clic DOM: Chrome a veces descarta el clic nativo tras un re-render de la SPA."""
+        self.js("arguments[0].click();", elemento)
+        return elemento
 
     def cerrar_sesion(self):
-        self.espera.until(EC.element_to_be_clickable(self.BTN_SALIR)).click()
+        el = self.espera.until(EC.element_to_be_clickable(self.BTN_SALIR))
+        self.js("arguments[0].click();", el)
 
     # ---- helpers para las pruebas por módulo ----
     def js(self, script, *args):
@@ -69,7 +93,8 @@ class AppPage:
 
     def enviar_formulario(self):
         sel = (By.CSS_SELECTOR, ".modal-overlay.open button[type='submit']")
-        self.espera.until(EC.element_to_be_clickable(sel)).click()
+        el = self.espera.until(EC.element_to_be_clickable(sel))
+        self.js("arguments[0].click();", el)
 
     def hay_texto(self, texto):
         return self.espera.until(EC.text_to_be_present_in_element((By.TAG_NAME, "body"), texto))

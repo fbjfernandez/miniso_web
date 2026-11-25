@@ -4,6 +4,7 @@ from selenium.webdriver.support import expected_conditions as EC
 from paginas.login_page import LoginPage
 from paginas.app_page import AppPage
 from conftest import URL, USUARIOS, CLAVE, solo_destructiva
+import api_auth
 
 
 @pytest.mark.parametrize("rol", ["Cajero", "Administrador", "Almacenero"])
@@ -43,12 +44,25 @@ def test_bloqueo_tras_5_intentos(driver):
     """Usa una cuenta DESECHABLE (el admin puede desbloquearla en Usuarios)."""
     import os
     cuenta = os.getenv("MINISO_USER_BLOQUEO")
+    creada = None
     if not cuenta:
-        pytest.skip("Define MINISO_USER_BLOQUEO con una cuenta de prueba")
-    login = LoginPage(driver, URL).abrir()
-    for _ in range(5):
-        login.iniciar_sesion(cuenta, "clave_mala")
-        driver.implicitly_wait(0)
-        login.espera.until(EC.visibility_of_element_located(login.ERROR))
-        login.espera.until(EC.element_to_be_clickable(login.BTN_INGRESAR))
-    assert "bloqueado" in login.mensaje_error().lower()
+        cuenta = api_auth.crear_usuario_desechable("qa_bloqueo")
+        creada = cuenta
+    try:
+        assert api_auth.desbloquear(cuenta), f"No se pudo preparar la cuenta {cuenta}"
+        login = LoginPage(driver, URL).abrir()
+        for _ in range(5):
+            login.iniciar_sesion(cuenta, "clave_mala")
+            driver.implicitly_wait(0)
+            login.espera.until(EC.visibility_of_element_located(login.ERROR))
+            login.espera.until(EC.element_to_be_clickable(login.BTN_INGRESAR))
+        assert "bloqueado" in login.mensaje_error().lower()
+    finally:
+        # La cuenta debe quedar desbloqueada y, si la creó la prueba, eliminada.
+        try:
+            assert api_auth.desbloquear(cuenta), (
+                f"La cuenta {cuenta} quedó bloqueada: desbloquéala desde Usuarios"
+            )
+        finally:
+            if creada:
+                api_auth.eliminar_usuario(creada)

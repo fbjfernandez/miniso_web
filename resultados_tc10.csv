@@ -1,16 +1,14 @@
-﻿caso,resultado,fecha,observacion
-TC-F-001,FALLÓ,30/10/2026 23:11,venv\Lib\site-packages\selenium\webdriver\remote\errorhandler.py:232: InvalidSessionIdException
-TC-F-002,FALLÓ,30/10/2026 23:12,venv\Lib\site-packages\selenium\webdriver\remote\errorhandler.py:232: InvalidSessionIdException
-TC-F-003,FALLÓ,30/10/2026 23:12,venv\Lib\site-packages\selenium\webdriver\remote\errorhandler.py:232: NoSuchWindowException
-TC-F-004,FALLÓ,30/10/2026 23:12,venv\Lib\site-packages\selenium\webdriver\remote\errorhandler.py:232: NoSuchWindowException
-TC-F-005,FALLÓ,30/10/2026 23:12,venv\Lib\site-packages\selenium\webdriver\remote\errorhandler.py:232: InvalidSessionIdException
-TC-F-006,FALLÓ,30/10/2026 23:12,venv\Lib\site-packages\selenium\webdriver\remote\errorhandler.py:232: InvalidSessionIdException
-TC-F-007,FALLÓ,30/10/2026 23:12,venv\Lib\site-packages\selenium\webdriver\remote\errorhandler.py:232: NoSuchWindowException
-TC-F-011,FALLÓ,30/10/2026 23:12,venv\Lib\site-packages\selenium\webdriver\remote\errorhandler.py:232: NoSuchWindowException
-TC-F-012,FALLÓ,30/10/2026 23:12,venv\Lib\site-packages\selenium\webdriver\remote\errorhandler.py:232: InvalidSessionIdException
-TC-F-014,PASÓ,30/10/2026 23:13,
-TC-F-015,PASÓ,30/10/2026 23:13,
-TC-F-016,PASÓ,30/10/2026 23:13,
-TC-F-020,FALLÓ,30/10/2026 23:13,tests\test_tc10_autenticacion.py:173: AssertionError
-TC-F-001,FALLÓ,30/10/2026 23:19,venv\Lib\site-packages\selenium\webdriver\remote\errorhandler.py:232: InvalidSessionIdException
-TC-F-001,FALLÓ,30/10/2026 23:26,venv\Lib\site-packages\selenium\webdriver\support\wait.py:121: TimeoutException
+caso,resultado,fecha,observacion
+TC-F-001,PASÓ,24/11/2026 21:48,
+TC-F-002,PASÓ,24/11/2026 21:48,
+TC-F-003,PASÓ,24/11/2026 21:48,
+TC-F-004,PASÓ,24/11/2026 21:48,
+TC-F-005,PASÓ,24/11/2026 21:49,
+TC-F-006,PASÓ,24/11/2026 21:49,
+TC-F-007,PASÓ,24/11/2026 21:49,
+TC-F-011,PASÓ,24/11/2026 21:49,
+TC-F-012,PASÓ,24/11/2026 21:49,
+TC-F-014,PASÓ,24/11/2026 21:49,
+TC-F-015,PASÓ,24/11/2026 21:49,
+TC-F-016,PASÓ,24/11/2026 21:49,
+TC-F-017,PASÓ,24/11/2026 21:49,

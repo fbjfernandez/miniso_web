@@ -3,6 +3,7 @@ import pytest
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support import expected_conditions as EC
 from conftest import solo_destructiva
+import api_auth
 
 
 def _abrir_formulario(entrar):
@@ -16,15 +17,20 @@ def _abrir_formulario(entrar):
 def test_m05_feliz_crear_proveedor(entrar):
     sufijo = str(int(time.time() * 1000))[-9:]
     ruc = "20" + sufijo
-    app = _abrir_formulario(entrar)
-    app.escribir("pv-nombre", f"QA Proveedor {sufijo} SAC")
-    app.escribir("pv-ruc", ruc)
-    app.escribir("pv-contacto", "QA Contacto")
-    app.escribir("pv-telefono", "999888777")
-    app.escribir("pv-email", f"qa{sufijo}@test.com")
-    app.enviar_formulario()
-    assert "Proveedor registrado correctamente" in app.toast("Proveedor registrado correctamente")
-    app.espera.until(EC.text_to_be_present_in_element((By.CSS_SELECTOR, "tbody"), ruc))
+    try:
+        app = _abrir_formulario(entrar)
+        app.escribir("pv-nombre", f"QA Proveedor {sufijo} SAC")
+        app.escribir("pv-ruc", ruc)
+        app.escribir("pv-contacto", "QA Contacto")
+        app.escribir("pv-telefono", "999888777")
+        app.escribir("pv-email", f"qa{sufijo}@test.com")
+        app.enviar_formulario()
+        assert "Proveedor registrado correctamente" in app.toast("Proveedor registrado correctamente")
+        app.espera.until(EC.text_to_be_present_in_element((By.CSS_SELECTOR, "tbody"), ruc))
+    finally:
+        id_proveedor = api_auth.id_por("ruc", ruc, "proveedor")
+        if id_proveedor:
+            api_auth.eliminar_proveedor(id_proveedor)
 
 
 def test_m05_borde_ruc_de_10_11_y_13_digitos(entrar):

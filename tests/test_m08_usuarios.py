@@ -3,6 +3,7 @@ import pytest
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support import expected_conditions as EC
 from conftest import solo_destructiva
+import api_auth
 
 
 def _abrir_formulario(entrar):
@@ -22,11 +23,14 @@ def _llenar(app, username, clave):
 @pytest.mark.destructiva
 def test_m08_feliz_crear_usuario(entrar):
     username = "qa" + str(int(time.time()))[-6:]
-    app = _abrir_formulario(entrar)
-    _llenar(app, username, "1234")
-    app.enviar_formulario()
-    assert "Usuario creado correctamente" in app.toast("Usuario creado correctamente")
-    app.espera.until(EC.text_to_be_present_in_element((By.CSS_SELECTOR, "tbody"), username))
+    try:
+        app = _abrir_formulario(entrar)
+        _llenar(app, username, "1234")
+        app.enviar_formulario()
+        assert "Usuario creado correctamente" in app.toast("Usuario creado correctamente")
+        app.espera.until(EC.text_to_be_present_in_element((By.CSS_SELECTOR, "tbody"), username))
+    finally:
+        api_auth.eliminar_usuario(username)
 
 
 def test_m08_borde_clave_de_3_caracteres(entrar):
